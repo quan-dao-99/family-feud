@@ -88,6 +88,9 @@ export const RulesModal: React.FC<RulesModalProps> = ({ isOpen, onClose }) => {
                 <span className="font-mono text-red-400 font-bold">[ X ]</span>: Bấm sai (Thêm 1 Strike)
               </div>
               <div className="bg-slate-950 p-2 rounded-xl border border-slate-800">
+                <span className="font-mono text-indigo-400 font-bold">[ Space ]</span>: Bật/Tắt nhận diện giọng nói
+              </div>
+              <div className="bg-slate-950 p-2 rounded-xl border border-slate-800">
                 <span className="font-mono text-emerald-400 font-bold">[ A ] / [ Z ]</span>: Chuông Đội Đỏ
               </div>
               <div className="bg-slate-950 p-2 rounded-xl border border-slate-800">

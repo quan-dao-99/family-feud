@@ -1,7 +1,8 @@
-import { useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import type { GameState } from '../types/game';
-import { X, Shield } from 'lucide-react';
-
+import { X, Shield, Mic, CheckCircle2, XCircle, AlertTriangle } from 'lucide-react';
+import { useSpeechRecognition } from '../hooks/useSpeechRecognition';
+import { matchAnswer } from '../utils/answerMatcher';
 
 interface GameBoardProps {
   state: GameState;
@@ -19,14 +20,92 @@ export const GameBoard: React.FC<GameBoardProps> = ({
   onAddStrike,
   onAwardBank,
 }) => {
+  const [voiceToast, setVoiceToast] = useState<{
+    type: 'success' | 'error' | 'warning';
+    title: string;
+    detail: string;
+  } | null>(null);
+  const toastTimerRef = useRef<number | null>(null);
+
   const currentQuestion = state.questions[state.currentRoundIndex];
   const multiplier = currentQuestion?.multiplier || 1;
+
+  const showToast = useCallback((toast: { type: 'success' | 'error' | 'warning'; title: string; detail: string }) => {
+    if (toastTimerRef.current) {
+      clearTimeout(toastTimerRef.current);
+    }
+    setVoiceToast(toast);
+    toastTimerRef.current = window.setTimeout(() => {
+      setVoiceToast(null);
+    }, 3500);
+  }, []);
+
+  // Speech Recognition for GameBoard
+  const {
+    isListening,
+    transcript,
+    interimTranscript,
+    audioLevel,
+    startListening,
+    stopListening,
+    resetTranscript,
+  } = useSpeechRecognition({
+    lang: 'vi-VN',
+    continuous: true,
+    interimResults: true,
+    silenceTimeoutMs: 1100,
+    onResult: (text, isFinal) => {
+      if (isFinal && text && currentQuestion) {
+        const result = matchAnswer(text, currentQuestion.answers, state.revealedAnswers);
+        if (result.status === 'MATCH_NEW' && result.matchedAnswer) {
+          onRevealAnswer(result.matchedAnswer.id);
+          showToast({
+            type: 'success',
+            title: `CHÍNH XÁC: "${result.matchedAnswer.text}"`,
+            detail: `+${result.matchedAnswer.points * multiplier} điểm`,
+          });
+        } else if (result.status === 'NO_MATCH') {
+          onAddStrike(1);
+          showToast({
+            type: 'error',
+            title: `SAI: "${text}"`,
+            detail: `Không có trong bảng (+1 Dấu X)`,
+          });
+        } else if (result.status === 'MATCH_ALREADY_REVEALED' && result.matchedAnswer) {
+          showToast({
+            type: 'warning',
+            title: `ĐÃ LẬT RỒI: "${result.matchedAnswer.text}"`,
+            detail: `Vui lòng nêu đáp án khác`,
+          });
+        }
+        stopListening();
+      }
+    },
+  });
+
+  const handleToggleVoice = useCallback(() => {
+    if (isListening) {
+      stopListening();
+      setVoiceToast(null);
+    } else {
+      setVoiceToast(null);
+      resetTranscript();
+      startListening('vi-VN');
+    }
+  }, [isListening, stopListening, resetTranscript, startListening]);
 
   // Keyboard shortcut listener for seamless single-screen play
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       // Don't trigger if user is typing in an input
       if (['INPUT', 'TEXTAREA'].includes((e.target as HTMLElement)?.tagName)) {
+        return;
+      }
+
+      // Space key for voice recognition toggle
+      if (e.code === 'Space' || e.key === ' ') {
+        e.preventDefault();
+        handleToggleVoice();
         return;
       }
 
@@ -52,7 +131,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [currentQuestion, state.revealedAnswers, onRevealAnswer, onHideAnswer, onAddStrike]);
+  }, [currentQuestion, state.revealedAnswers, onRevealAnswer, onHideAnswer, onAddStrike, handleToggleVoice]);
 
   if (!currentQuestion) {
     return (
@@ -275,11 +354,65 @@ export const GameBoard: React.FC<GameBoardProps> = ({
           <span className="flex items-center gap-1">
             <kbd className="px-1.5 py-0.5 bg-slate-800 rounded border border-slate-700 text-slate-300 font-mono">X</kbd> Bấm sai (Strike)
           </span>
+          <button
+            onClick={handleToggleVoice}
+            className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg border font-bold transition ${
+              isListening
+                ? 'bg-red-600 text-white border-red-400 shadow-md shadow-red-600/40 animate-pulse'
+                : 'bg-slate-800 hover:bg-slate-700 text-indigo-300 border-slate-700'
+            }`}
+            title="Bấm hoặc nhấn phím Space để nghe người chơi đọc đáp án"
+          >
+            <Mic className="w-3.5 h-3.5" />
+            <kbd className="px-1.5 py-0.5 bg-slate-900/80 rounded border border-slate-700 text-[10px] font-mono">Space</kbd>
+            <span>{isListening ? 'Đang nghe...' : 'Giọng nói'}</span>
+          </button>
         </div>
         <div className="text-slate-400">
-          Tip: Bấm trực tiếp vào ô để lật, hoặc bấm vào điểm của đội để cộng điểm tích lũy!
+          Tip: Bấm trực tiếp vào ô để lật, hoặc bấm <kbd className="px-1 py-0.5 bg-slate-800 rounded border border-slate-700 text-slate-300 font-mono">Space</kbd> để đọc câu trả lời!
         </div>
       </div>
+
+      {/* Floating Real-time Voice Listening Indicator (No Popup) */}
+      {isListening && (
+        <div className="fixed top-6 left-1/2 -translate-x-1/2 z-40 bg-slate-950/95 border-2 border-indigo-500/80 rounded-full px-5 py-2.5 shadow-2xl flex items-center gap-3 backdrop-blur animate-pulse">
+          <div className="w-2.5 h-2.5 rounded-full bg-red-500 animate-ping" />
+          <Mic className="w-4 h-4 text-indigo-400" />
+          <span className="text-xs md:text-sm font-bold text-white max-w-xs md:max-w-md truncate">
+            {interimTranscript || transcript || 'Đang lắng nghe câu trả lời... (Nói vào micro)'}
+          </span>
+          {audioLevel > 5 && (
+            <span className="text-xs font-mono font-bold text-emerald-400 bg-emerald-950/80 px-2 py-0.5 rounded-full border border-emerald-500/40">
+              {audioLevel}%
+            </span>
+          )}
+          <button
+            onClick={handleToggleVoice}
+            className="text-[10px] text-slate-400 hover:text-white bg-slate-800 px-2 py-0.5 rounded-full border border-slate-700 font-semibold ml-1 shrink-0"
+          >
+            Dừng (Space)
+          </button>
+        </div>
+      )}
+
+      {/* Voice Answer Result Toast (No Popup) */}
+      {voiceToast && (
+        <div className={`fixed top-6 left-1/2 -translate-x-1/2 z-40 px-5 py-2.5 rounded-2xl shadow-2xl backdrop-blur border flex items-center gap-3 animate-bounce transition-all ${
+          voiceToast.type === 'success'
+            ? 'bg-emerald-950/95 border-emerald-500 text-emerald-200 shadow-emerald-500/20'
+            : voiceToast.type === 'error'
+            ? 'bg-red-950/95 border-red-500 text-red-200 shadow-red-500/20'
+            : 'bg-amber-950/95 border-amber-500 text-amber-200 shadow-amber-500/20'
+        }`}>
+          {voiceToast.type === 'success' && <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />}
+          {voiceToast.type === 'error' && <XCircle className="w-5 h-5 text-red-400 shrink-0" />}
+          {voiceToast.type === 'warning' && <AlertTriangle className="w-5 h-5 text-amber-400 shrink-0" />}
+          <div>
+            <p className="text-xs md:text-sm font-extrabold text-white">{voiceToast.title}</p>
+            <p className="text-[11px] opacity-80">{voiceToast.detail}</p>
+          </div>
+        </div>
+      )}
 
       {/* Giant Strike Overlay Animation (X / XX / XXX) */}
       {state.strikeOverlay.visible && (

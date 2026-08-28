@@ -9,10 +9,13 @@ import {
   AlertCircle, 
   User, 
   Users, 
-  Timer 
+  Timer,
+  Mic
 } from 'lucide-react';
 import { soundManager } from '../utils/audio';
 import confetti from 'canvas-confetti';
+import { useSpeechRecognition } from '../hooks/useSpeechRecognition';
+import { matchFastMoneyAnswer } from '../utils/answerMatcher';
 
 interface FastMoneyRoundProps {
   fastMoney: FastMoneyState;
@@ -24,7 +27,51 @@ export const FastMoneyRound: React.FC<FastMoneyRoundProps> = ({
   onUpdateFastMoney,
 }) => {
   const [activeTab, setActiveTab] = useState<'board' | 'mc'>('board');
+  const [listeningQIndex, setListeningQIndex] = useState<number | null>(null);
   const timerIntervalRef = useRef<number | null>(null);
+
+  // Speech Recognition for Fast Money
+  const {
+    isListening,
+    interimTranscript,
+    startListening,
+    stopListening,
+  } = useSpeechRecognition({
+    lang: 'vi-VN',
+    continuous: false,
+    interimResults: true,
+    onResult: (text, isFinal) => {
+      if (isFinal && text && listeningQIndex !== null) {
+        const q = fastMoney.questions[listeningQIndex];
+        const targetPlayer = fastMoney.activePlayer === 1 ? 'player1' : 'player2';
+        if (q) {
+          const match = matchFastMoneyAnswer(text, q.answers || []);
+          if (match.status === 'MATCH' && match.matchedAnswer) {
+            handleEntryChange(targetPlayer, listeningQIndex, 'answer', match.matchedAnswer.text);
+            handleEntryChange(targetPlayer, listeningQIndex, 'points', match.matchedAnswer.points);
+            soundManager.playDing();
+          } else {
+            handleEntryChange(targetPlayer, listeningQIndex, 'answer', text);
+            handleEntryChange(targetPlayer, listeningQIndex, 'points', 0);
+          }
+        }
+        setListeningQIndex(null);
+      }
+    },
+    onEnd: () => {
+      setListeningQIndex(null);
+    },
+  });
+
+  const handleToggleVoiceForQuestion = (qIndex: number) => {
+    if (listeningQIndex === qIndex && isListening) {
+      stopListening();
+      setListeningQIndex(null);
+    } else {
+      setListeningQIndex(qIndex);
+      startListening('vi-VN');
+    }
+  };
 
 
   // Active player total points calculation
@@ -506,12 +553,33 @@ export const FastMoneyRound: React.FC<FastMoneyRoundProps> = ({
                       </h3>
                     </div>
 
-                    {/* Duplicate alert */}
-                    {isDuplicate && (
-                      <div className="flex items-center gap-1 text-xs bg-amber-500/20 text-amber-300 border border-amber-500/30 px-2 py-1 rounded-lg animate-pulse font-bold">
-                        <AlertCircle className="w-3.5 h-3.5" /> Trùng câu trả lời!
-                      </div>
-                    )}
+                    <div className="flex items-center gap-2">
+                      {/* Voice input button for this question */}
+                      <button
+                        type="button"
+                        onClick={() => handleToggleVoiceForQuestion(idx)}
+                        className={`px-2.5 py-1 rounded-lg text-xs font-bold transition flex items-center gap-1.5 ${
+                          listeningQIndex === idx && isListening
+                            ? 'bg-red-600 text-white animate-pulse shadow-md shadow-red-600/40'
+                            : 'bg-indigo-950/80 hover:bg-indigo-900/80 text-indigo-300 border border-indigo-500/40'
+                        }`}
+                        title="Bấm để nói đáp án (Tự động nhận diện và tính điểm)"
+                      >
+                        <Mic className="w-3.5 h-3.5" />
+                        {listeningQIndex === idx && isListening ? (
+                          <span className="truncate max-w-[140px]">{interimTranscript || 'Đang nghe...'}</span>
+                        ) : (
+                          <span>🎤 Đọc đáp án</span>
+                        )}
+                      </button>
+
+                      {/* Duplicate alert */}
+                      {isDuplicate && (
+                        <div className="flex items-center gap-1 text-xs bg-amber-500/20 text-amber-300 border border-amber-500/30 px-2 py-1 rounded-lg animate-pulse font-bold">
+                          <AlertCircle className="w-3.5 h-3.5" /> Trùng câu trả lời!
+                        </div>
+                      )}
+                    </div>
                   </div>
 
                   {/* Answers & Points Guide for MC */}

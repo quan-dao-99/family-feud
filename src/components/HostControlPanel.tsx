@@ -15,6 +15,7 @@ import {
   Check
 } from 'lucide-react';
 import { soundManager } from '../utils/audio';
+import { VoiceAnswerWidget } from './VoiceAnswerWidget';
 
 
 interface HostControlPanelProps {
@@ -389,6 +390,15 @@ export const HostControlPanel: React.FC<HostControlPanelProps> = ({
               </button>
             </div>
           </div>
+
+          {/* Speech Recognition & Smart Answer Matcher for Current Question */}
+          <VoiceAnswerWidget
+            answers={currentQuestion.answers}
+            revealedAnswerIds={state.revealedAnswers}
+            multiplier={multiplier}
+            onRevealAnswer={onRevealAnswer}
+            onAddStrike={onAddStrike}
+          />
 
           {/* List of answers with single-click reveal/hide buttons */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
