@@ -51,6 +51,8 @@
 | :--- | :--- |
 | **`1` - `8`** | Lật mở / Ẩn đáp án từ ô số 1 đến 8 |
 | **`X`** | Bấm sai (Thêm 1 dấu X và âm thanh Buzz) |
+| **`N`** / **`P`** | Chuyển Vòng tiếp theo (`N`) / Vòng trước (`P`) |
+| **`Space`** | Bật / Tắt Mic nhận diện giọng nói (hoặc đặt lại chuông bấm) |
 | **`A`** hoặc **`Z`** | Chuông bấm Đội Đỏ (Team A) |
 | **`L`** hoặc **`M`** | Chuông bấm Đội Xanh (Team B) |
-| **`Space`** | Đặt lại chuông bấm |
+

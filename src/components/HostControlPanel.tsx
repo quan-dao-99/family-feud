@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import type { GameState } from '../types/game';
+import type { GameState, ViewMode } from '../types/game';
 import { 
   Eye, 
   EyeOff, 
@@ -12,11 +12,15 @@ import {
   Shield, 
   HelpCircle,
   Edit2,
-  Check
+  Check,
+  ArrowRight,
+  ArrowLeft,
+  Trophy,
+  Sparkles
 } from 'lucide-react';
 import { soundManager } from '../utils/audio';
 import { VoiceAnswerWidget } from './VoiceAnswerWidget';
-
+import { ChungSucLogo } from './ChungSucLogo';
 
 interface HostControlPanelProps {
   state: GameState;
@@ -31,7 +35,9 @@ interface HostControlPanelProps {
   onUpdateTeamName: (team: 'teamA' | 'teamB', name: string) => void;
   onUpdateTeamScore: (team: 'teamA' | 'teamB', score: number) => void;
   onSetControllingTeam: (team: 'teamA' | 'teamB' | null) => void;
+  onViewChange?: (view: ViewMode) => void;
 }
+
 
 export const HostControlPanel: React.FC<HostControlPanelProps> = ({
   state,
@@ -46,12 +52,14 @@ export const HostControlPanel: React.FC<HostControlPanelProps> = ({
   onUpdateTeamName,
   onUpdateTeamScore,
   onSetControllingTeam,
+  onViewChange,
 }) => {
   const [editingTeam, setEditingTeam] = useState<'teamA' | 'teamB' | null>(null);
   const [teamANameInput, setTeamANameInput] = useState(state.teams.teamA.name);
   const [teamBNameInput, setTeamBNameInput] = useState(state.teams.teamB.name);
 
   const currentQuestion = state.questions[state.currentRoundIndex];
+
   const multiplier = currentQuestion?.multiplier || 1;
 
   const saveTeamName = (team: 'teamA' | 'teamB') => {
@@ -68,14 +76,17 @@ export const HostControlPanel: React.FC<HostControlPanelProps> = ({
       
       {/* Top Notification Bar for MC */}
       <div className="bg-amber-500/10 border border-amber-500/30 rounded-2xl p-4 flex flex-col md:flex-row items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-amber-500 text-slate-950 flex items-center justify-center font-black text-lg shadow-md">
-            MC
-          </div>
+        <div className="flex items-center gap-3.5">
+          <ChungSucLogo variant="icon" size="lg" animated={true} />
           <div>
-            <h1 className="font-bold text-lg text-amber-300">
-              Bảng Điều Khiển Dành Cho Người Dẫn Chương Trình (Host)
-            </h1>
+            <div className="flex items-center gap-2">
+              <h1 className="font-bold text-lg text-amber-300">
+                Bảng Điều Khiển Dành Cho Người Dẫn Chương Trình (Host)
+              </h1>
+              <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-500 text-slate-950 font-black uppercase shadow-sm">
+                MC
+              </span>
+            </div>
             <p className="text-xs text-slate-400">
               Bạn thấy toàn bộ đáp án và điểm số. Thao tác tại đây sẽ lập tức đồng bộ lên màn hình TV chiếu cho người chơi.
             </p>
@@ -464,8 +475,60 @@ export const HostControlPanel: React.FC<HostControlPanelProps> = ({
             })}
           </div>
 
+          {/* Dedicated Round Transition & Completion Action Card */}
+          <div className="bg-gradient-to-r from-slate-950 via-slate-900 to-slate-950 border border-amber-500/30 rounded-xl p-4 flex flex-col md:flex-row items-center justify-between gap-3 mt-4 shadow-inner">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-xl bg-amber-500/20 text-amber-300 border border-amber-500/40 flex items-center justify-center font-black text-sm shrink-0">
+                {state.currentRoundIndex + 1}/{state.questions.length}
+              </div>
+              <div>
+                <h4 className="font-bold text-white text-sm">
+                  Đổi Vòng Đấu Khi Kết Thúc:
+                </h4>
+                <p className="text-xs text-slate-400">
+                  {state.currentRoundIndex < state.questions.length - 1
+                    ? `Vòng tiếp theo: Vòng ${state.currentRoundIndex + 2} (Hệ số x${state.questions[state.currentRoundIndex + 1]?.multiplier || 1})`
+                    : 'Đây là vòng bảng cuối cùng! Sẵn sàng bước vào Vòng Đặc Biệt.'}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 w-full md:w-auto justify-end">
+              {/* Previous Round Button */}
+              <button
+                onClick={() => onSetRound(state.currentRoundIndex - 1)}
+                disabled={state.currentRoundIndex === 0}
+                className="px-3.5 py-2 bg-slate-800 hover:bg-slate-700 disabled:opacity-40 disabled:cursor-not-allowed text-slate-300 rounded-xl text-xs font-bold border border-slate-700 flex items-center gap-1.5 transition"
+              >
+                <ArrowLeft className="w-4 h-4" />
+                Vòng Trước
+              </button>
+
+              {/* Next Round or Fast Money Button */}
+              {state.currentRoundIndex < state.questions.length - 1 ? (
+                <button
+                  onClick={() => onSetRound(state.currentRoundIndex + 1)}
+                  className="px-4 py-2 bg-gradient-to-r from-amber-500 to-yellow-400 hover:from-amber-400 hover:to-yellow-300 text-slate-950 rounded-xl text-xs font-black shadow-lg shadow-amber-500/20 flex items-center gap-1.5 transition active:scale-95"
+                >
+                  <span>Chuyển Sang Vòng {state.currentRoundIndex + 2}</span>
+                  <ArrowRight className="w-4 h-4" />
+                </button>
+              ) : (
+                <button
+                  onClick={() => onViewChange ? onViewChange('fast-money') : null}
+                  className="px-4 py-2 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white rounded-xl text-xs font-black shadow-lg shadow-purple-600/30 flex items-center gap-1.5 transition active:scale-95 animate-pulse"
+                >
+                  <Trophy className="w-4 h-4" />
+                  <span>Vào Vòng Đặc Biệt (Fast Money)</span>
+                  <Sparkles className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
+          </div>
+
         </div>
       ) : null}
+
 
       {/* MC Rules / Flow Guide Cheat Sheet */}
       <div className="bg-slate-900/60 border border-slate-800/80 rounded-2xl p-4 text-xs text-slate-400 space-y-2">

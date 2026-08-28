@@ -78,6 +78,8 @@ export function App() {
             onHideAnswer={hideAnswer}
             onAddStrike={addStrike}
             onAwardBank={awardBank}
+            onSetRound={setRound}
+            onViewChange={handleViewChange}
           />
         )}
 
@@ -95,8 +97,10 @@ export function App() {
             onUpdateTeamName={updateTeamName}
             onUpdateTeamScore={updateTeamScore}
             onSetControllingTeam={setControllingTeam}
+            onViewChange={handleViewChange}
           />
         )}
+
 
         {currentView === 'fast-money' && (
           <FastMoneyRound

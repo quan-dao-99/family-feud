@@ -1,5 +1,5 @@
-import { X, BookOpen, SlidersHorizontal, Zap, HelpCircle, Monitor } from 'lucide-react';
-
+import { X, SlidersHorizontal, Zap, HelpCircle, Monitor } from 'lucide-react';
+import { ChungSucLogo } from './ChungSucLogo';
 
 interface RulesModalProps {
   isOpen: boolean;
@@ -15,13 +15,16 @@ export const RulesModal: React.FC<RulesModalProps> = ({ isOpen, onClose }) => {
         
         {/* Header */}
         <div className="flex items-center justify-between border-b border-slate-800 pb-4">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-amber-500/20 text-amber-300 flex items-center justify-center">
-              <BookOpen className="w-5 h-5" />
+          <div className="flex items-center gap-3">
+            <ChungSucLogo variant="icon" size="md" animated={true} />
+            <div>
+              <h2 className="text-xl font-extrabold text-white">
+                Cẩm Nang & Luật Chơi Chung Sức
+              </h2>
+              <span className="text-[11px] text-amber-400 font-medium">
+                Quy chuẩn gameshow truyền hình Family Feud
+              </span>
             </div>
-            <h2 className="text-xl font-extrabold text-white">
-              Cẩm Nang & Luật Chơi Chung Sức
-            </h2>
           </div>
           <button
             onClick={onClose}
@@ -91,11 +94,15 @@ export const RulesModal: React.FC<RulesModalProps> = ({ isOpen, onClose }) => {
                 <span className="font-mono text-indigo-400 font-bold">[ Space ]</span>: Bật/Tắt nhận diện giọng nói
               </div>
               <div className="bg-slate-950 p-2 rounded-xl border border-slate-800">
+                <span className="font-mono text-amber-400 font-bold">[ N ] / [ P ]</span>: Chuyển Vòng tiếp / Vòng trước
+              </div>
+              <div className="bg-slate-950 p-2 rounded-xl border border-slate-800">
                 <span className="font-mono text-emerald-400 font-bold">[ A ] / [ Z ]</span>: Chuông Đội Đỏ
               </div>
               <div className="bg-slate-950 p-2 rounded-xl border border-slate-800">
                 <span className="font-mono text-blue-400 font-bold">[ L ] / [ M ]</span>: Chuông Đội Xanh
               </div>
+
             </div>
           </div>
 

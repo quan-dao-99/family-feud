@@ -14,6 +14,7 @@ import {
   Code,
   Layers
 } from 'lucide-react';
+import { ChungSucLogo } from './ChungSucLogo';
 
 
 interface QuestionManagerProps {
@@ -246,21 +247,24 @@ export const QuestionManager: React.FC<QuestionManagerProps> = ({
       
       {/* Top Header & Actions Bar */}
       <div className="bg-slate-900 border border-slate-800 rounded-3xl p-5 flex flex-col md:flex-row items-center justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2 mb-1">
-            <span className="px-2.5 py-0.5 rounded-full bg-rose-500/20 text-rose-300 text-xs font-bold border border-rose-500/30">
-              Ngân Hàng Dữ Liệu
-            </span>
-            {saveSuccessNotice && (
-              <span className="text-xs text-emerald-400 font-bold flex items-center gap-1 animate-pulse">
-                <Check className="w-3.5 h-3.5" /> Đã lưu thay đổi!
+        <div className="flex items-center gap-3.5">
+          <ChungSucLogo variant="icon" size="lg" animated={true} />
+          <div>
+            <div className="flex items-center gap-2 mb-1">
+              <span className="px-2.5 py-0.5 rounded-full bg-rose-500/20 text-rose-300 text-xs font-bold border border-rose-500/30">
+                Ngân Hàng Dữ Liệu
               </span>
-            )}
+              {saveSuccessNotice && (
+                <span className="text-xs text-emerald-400 font-bold flex items-center gap-1 animate-pulse">
+                  <Check className="w-3.5 h-3.5" /> Đã lưu thay đổi!
+                </span>
+              )}
+            </div>
+            <h1 className="text-2xl font-extrabold text-white">Quản Lý & Tự Thêm Câu Hỏi</h1>
+            <p className="text-xs text-slate-400 mt-0.5">
+              Dễ dàng thêm câu hỏi mới, chỉnh sửa đáp án, hoặc xuất/nhập file JSON để chuẩn bị cho Game Night.
+            </p>
           </div>
-          <h1 className="text-2xl font-extrabold text-white">Quản Lý & Tự Thêm Câu Hỏi</h1>
-          <p className="text-xs text-slate-400 mt-0.5">
-            Dễ dàng thêm câu hỏi mới, chỉnh sửa đáp án, hoặc xuất/nhập file JSON để chuẩn bị cho Game Night.
-          </p>
         </div>
 
         {/* Global import / export buttons */}

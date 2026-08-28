@@ -16,6 +16,7 @@ import { soundManager } from '../utils/audio';
 import confetti from 'canvas-confetti';
 import { useSpeechRecognition } from '../hooks/useSpeechRecognition';
 import { matchFastMoneyAnswer } from '../utils/answerMatcher';
+import { ChungSucLogo } from './ChungSucLogo';
 
 interface FastMoneyRoundProps {
   fastMoney: FastMoneyState;
@@ -264,19 +265,22 @@ export const FastMoneyRound: React.FC<FastMoneyRoundProps> = ({
       <div className="bg-gradient-to-r from-purple-950/80 via-slate-900 to-purple-950/80 border border-purple-500/30 rounded-3xl p-5 shadow-2xl backdrop-blur">
         <div className="flex flex-col lg:flex-row items-center justify-between gap-6">
           
-          {/* Left: Info */}
-          <div>
-            <div className="flex items-center gap-2 mb-1">
-              <span className="px-3 py-0.5 rounded-full bg-purple-500/20 text-purple-300 text-xs font-black uppercase tracking-wider border border-purple-500/40">
-                Vòng Đặc Biệt
-              </span>
-              <span className="text-xs text-amber-400 font-bold">
-                Mục tiêu: Đạt từ 200 điểm trở lên
-              </span>
+          {/* Left: Info with Chung Suc Logo */}
+          <div className="flex items-center gap-3.5">
+            <ChungSucLogo variant="icon" size="lg" animated={true} />
+            <div>
+              <div className="flex items-center gap-2 mb-1">
+                <span className="px-3 py-0.5 rounded-full bg-purple-500/20 text-purple-300 text-xs font-black uppercase tracking-wider border border-purple-500/40">
+                  Vòng Đặc Biệt
+                </span>
+                <span className="text-xs text-amber-400 font-bold">
+                  Mục tiêu: Đạt từ 200 điểm trở lên
+                </span>
+              </div>
+              <h1 className="text-2xl md:text-3xl font-extrabold text-white tracking-wide">
+                Fast Money - 2 Người Chơi / 5 Câu Hỏi
+              </h1>
             </div>
-            <h1 className="text-2xl md:text-3xl font-extrabold text-white tracking-wide">
-              Fast Money - 2 Người Chơi / 5 Câu Hỏi
-            </h1>
           </div>
 
           {/* Center: Big Timer Controller */}

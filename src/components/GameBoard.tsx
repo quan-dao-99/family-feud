@@ -1,8 +1,9 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import type { GameState } from '../types/game';
-import { X, Shield, Mic, CheckCircle2, XCircle, AlertTriangle } from 'lucide-react';
+import type { GameState, ViewMode } from '../types/game';
+import { X, Shield, Mic, CheckCircle2, XCircle, AlertTriangle, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useSpeechRecognition } from '../hooks/useSpeechRecognition';
 import { matchAnswer } from '../utils/answerMatcher';
+import { ChungSucLogo } from './ChungSucLogo';
 
 interface GameBoardProps {
   state: GameState;
@@ -10,6 +11,8 @@ interface GameBoardProps {
   onHideAnswer: (id: string) => void;
   onAddStrike: (count?: number) => void;
   onAwardBank: (team: 'teamA' | 'teamB') => void;
+  onSetRound?: (index: number) => void;
+  onViewChange?: (view: ViewMode) => void;
   isHostControlled?: boolean;
 }
 
@@ -19,9 +22,12 @@ export const GameBoard: React.FC<GameBoardProps> = ({
   onHideAnswer,
   onAddStrike,
   onAwardBank,
+  onSetRound,
+  onViewChange,
 }) => {
   const [voiceToast, setVoiceToast] = useState<{
     type: 'success' | 'error' | 'warning';
+
     title: string;
     detail: string;
   } | null>(null);
@@ -127,16 +133,32 @@ export const GameBoard: React.FC<GameBoardProps> = ({
       if (key === 'x') {
         onAddStrike(1);
       }
+
+      // 'n' key for next round
+      if (key === 'n' && onSetRound) {
+        if (state.currentRoundIndex < state.questions.length - 1) {
+          onSetRound(state.currentRoundIndex + 1);
+        } else if (onViewChange) {
+          onViewChange('fast-money');
+        }
+      }
+
+      // 'p' key for previous round
+      if (key === 'p' && onSetRound && state.currentRoundIndex > 0) {
+        onSetRound(state.currentRoundIndex - 1);
+      }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [currentQuestion, state.revealedAnswers, onRevealAnswer, onHideAnswer, onAddStrike, handleToggleVoice]);
+  }, [currentQuestion, state.revealedAnswers, state.currentRoundIndex, state.questions.length, onRevealAnswer, onHideAnswer, onAddStrike, onSetRound, onViewChange, handleToggleVoice]);
+
 
   if (!currentQuestion) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[70vh] text-center p-8">
-        <div className="bg-slate-900 border border-slate-800 p-8 rounded-2xl max-w-md">
+        <div className="bg-slate-900 border border-slate-800 p-8 rounded-2xl max-w-md flex flex-col items-center">
+          <ChungSucLogo variant="icon" size="lg" className="mb-4" />
           <p className="text-xl font-bold text-amber-400 mb-2">Chưa có câu hỏi nào!</p>
           <p className="text-slate-400 text-sm">Vui lòng vào tab "Quản Lý Câu Hỏi" để thêm câu hỏi cho chương trình.</p>
         </div>
@@ -156,7 +178,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({
       <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[300px] bg-blue-600/10 blur-[120px] rounded-full pointer-events-none" />
 
       {/* Top Banner: Round Multiplier & Round Bank */}
-      <div className="relative z-10 max-w-6xl mx-auto w-full mb-4">
+      <div className="relative z-10 max-w-6xl mx-auto w-full mb-3">
         <div className="flex flex-col md:flex-row items-center justify-between gap-4">
           
           {/* Team A Score Box */}
@@ -189,19 +211,53 @@ export const GameBoard: React.FC<GameBoardProps> = ({
             </div>
           </div>
 
-          {/* Center: Round Bank & Multiplier */}
+          {/* Center: Chung Sức Logo, Round Bank & Multiplier */}
           <div className="flex flex-col items-center">
-            {/* Round info */}
+            {/* Chung Sức Show Logo */}
+            <div className="mb-2 transition-transform hover:scale-105">
+              <ChungSucLogo variant="full" size="sm" animated={true} />
+            </div>
+
+            {/* Round info & switcher */}
             <div className="flex items-center gap-2 mb-1">
+              {onSetRound && (
+                <button
+                  onClick={() => onSetRound(state.currentRoundIndex - 1)}
+                  disabled={state.currentRoundIndex === 0}
+                  className="p-1 rounded-lg bg-slate-800/80 hover:bg-slate-700 text-slate-400 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed border border-slate-700 transition"
+                  title="Vòng trước (Phím P)"
+                >
+                  <ChevronLeft className="w-3.5 h-3.5" />
+                </button>
+              )}
+
               <span className="px-3 py-0.5 rounded-full bg-amber-500/20 border border-amber-500/40 text-amber-300 text-xs font-bold uppercase tracking-wider">
-                Vòng {state.currentRoundIndex + 1}
+                Vòng {state.currentRoundIndex + 1} / {state.questions.length}
               </span>
+
               {multiplier > 1 && (
                 <span className="px-2.5 py-0.5 rounded-full bg-gradient-to-r from-amber-500 to-red-500 text-slate-950 text-xs font-black uppercase tracking-wider animate-bounce">
                   Điểm x{multiplier}
                 </span>
               )}
+
+              {onSetRound && (
+                <button
+                  onClick={() => {
+                    if (state.currentRoundIndex < state.questions.length - 1) {
+                      onSetRound(state.currentRoundIndex + 1);
+                    } else if (onViewChange) {
+                      onViewChange('fast-money');
+                    }
+                  }}
+                  className="p-1 rounded-lg bg-slate-800/80 hover:bg-slate-700 text-slate-400 hover:text-white border border-slate-700 transition"
+                  title={state.currentRoundIndex < state.questions.length - 1 ? "Vòng tiếp theo (Phím N)" : "Vào Vòng Đặc Biệt (Phím N)"}
+                >
+                  <ChevronRight className="w-3.5 h-3.5" />
+                </button>
+              )}
             </div>
+
 
             {/* Round Bank Board */}
             <div className="bg-gradient-to-b from-slate-900 via-slate-950 to-slate-900 p-2 md:p-3 rounded-2xl border-2 border-amber-500/60 glow-gold shadow-2xl min-w-[180px] md:min-w-[220px] text-center">
@@ -354,6 +410,9 @@ export const GameBoard: React.FC<GameBoardProps> = ({
           <span className="flex items-center gap-1">
             <kbd className="px-1.5 py-0.5 bg-slate-800 rounded border border-slate-700 text-slate-300 font-mono">X</kbd> Bấm sai (Strike)
           </span>
+          <span className="flex items-center gap-1">
+            <kbd className="px-1.5 py-0.5 bg-slate-800 rounded border border-slate-700 text-slate-300 font-mono">N/P</kbd> Đổi vòng
+          </span>
           <button
             onClick={handleToggleVoice}
             className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg border font-bold transition ${
@@ -371,6 +430,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({
         <div className="text-slate-400">
           Tip: Bấm trực tiếp vào ô để lật, hoặc bấm <kbd className="px-1 py-0.5 bg-slate-800 rounded border border-slate-700 text-slate-300 font-mono">Space</kbd> để đọc câu trả lời!
         </div>
+
       </div>
 
       {/* Floating Real-time Voice Listening Indicator (No Popup) */}

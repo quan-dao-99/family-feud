@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import type { ViewMode, GameState } from '../types/game';
+import { ChungSucLogo } from './ChungSucLogo';
 
 import { 
   Tv, 
@@ -59,24 +60,7 @@ export const HeaderNav: React.FC<HeaderNavProps> = ({
     <header className="bg-slate-900/90 backdrop-blur border-b border-slate-800 sticky top-0 z-50 px-4 py-2.5">
       <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-3">
         {/* Logo & Game Title */}
-        <div className="flex items-center space-x-3">
-          <div className="w-9 h-9 rounded-lg bg-gradient-to-tr from-amber-500 to-yellow-300 flex items-center justify-center font-black text-slate-950 text-xl shadow-lg shadow-amber-500/20">
-            CS
-          </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="font-extrabold text-lg tracking-wider text-gold-gradient uppercase">
-                Chung Sức
-              </span>
-              <span className="text-[11px] px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30 font-medium">
-                Family Feud
-              </span>
-            </div>
-            <p className="text-xs text-slate-400 hidden sm:block">
-              Gameshow Night Host & Interactive Display
-            </p>
-          </div>
-        </div>
+        <ChungSucLogo variant="badge" size="md" animated={true} />
 
         {/* View Switcher Navigation */}
         <nav className="flex items-center bg-slate-950/70 p-1 rounded-xl border border-slate-800 shadow-inner">

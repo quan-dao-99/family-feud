@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { GameState } from '../types/game';
 import { Bell, RotateCcw, Trophy } from 'lucide-react';
-
+import { ChungSucLogo } from './ChungSucLogo';
 
 interface BuzzerModalProps {
   state: GameState;
@@ -50,8 +50,9 @@ export const BuzzerModal: React.FC<BuzzerModalProps> = ({
   return (
     <div className="max-w-4xl mx-auto p-4 md:p-8 space-y-6">
       
-      {/* Header */}
-      <div className="text-center space-y-2">
+      {/* Header with Chung Suc Logo */}
+      <div className="text-center space-y-3 flex flex-col items-center">
+        <ChungSucLogo variant="full" size="sm" animated={true} className="mb-1" />
         <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-300 text-xs font-bold border border-emerald-500/30">
           <Bell className="w-4 h-4 animate-bounce" />
           <span>Tranh Quyền Bấm Chuông Đầu Vòng</span>
