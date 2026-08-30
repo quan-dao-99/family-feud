@@ -243,36 +243,36 @@ export const QuestionManager: React.FC<QuestionManagerProps> = ({
   };
 
   return (
-    <div className="max-w-6xl mx-auto p-4 md:p-6 space-y-6">
+    <div className="max-w-6xl mx-auto p-3 sm:p-4 md:p-6 space-y-4 sm:space-y-6">
       
       {/* Top Header & Actions Bar */}
-      <div className="bg-slate-900 border border-slate-800 rounded-3xl p-5 flex flex-col md:flex-row items-center justify-between gap-4">
-        <div className="flex items-center gap-3.5">
-          <ChungSucLogo variant="icon" size="lg" animated={true} />
+      <div className="bg-slate-900 border border-slate-800 rounded-2xl sm:rounded-3xl p-3.5 sm:p-5 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 sm:gap-4">
+        <div className="flex items-center gap-3">
+          <ChungSucLogo variant="icon" size="md" animated={true} />
           <div>
-            <div className="flex items-center gap-2 mb-1">
-              <span className="px-2.5 py-0.5 rounded-full bg-rose-500/20 text-rose-300 text-xs font-bold border border-rose-500/30">
+            <div className="flex items-center gap-2 mb-0.5">
+              <span className="px-2.5 py-0.5 rounded-full bg-rose-500/20 text-rose-300 text-[10px] sm:text-xs font-bold border border-rose-500/30">
                 Ngân Hàng Dữ Liệu
               </span>
               {saveSuccessNotice && (
-                <span className="text-xs text-emerald-400 font-bold flex items-center gap-1 animate-pulse">
-                  <Check className="w-3.5 h-3.5" /> Đã lưu thay đổi!
+                <span className="text-[11px] sm:text-xs text-emerald-400 font-bold flex items-center gap-1 animate-pulse">
+                  <Check className="w-3.5 h-3.5" /> Đã lưu!
                 </span>
               )}
             </div>
-            <h1 className="text-2xl font-extrabold text-white">Quản Lý & Tự Thêm Câu Hỏi</h1>
-            <p className="text-xs text-slate-400 mt-0.5">
-              Dễ dàng thêm câu hỏi mới, chỉnh sửa đáp án, hoặc xuất/nhập file JSON để chuẩn bị cho Game Night.
+            <h1 className="text-lg sm:text-2xl font-extrabold text-white">Quản Lý & Tự Thêm Câu Hỏi</h1>
+            <p className="text-[11px] sm:text-xs text-slate-400 mt-0.5">
+              Thêm câu hỏi, chỉnh sửa đáp án, xuất/nhập JSON dễ dàng.
             </p>
           </div>
         </div>
 
         {/* Global import / export buttons */}
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
           {/* File Upload Input */}
-          <label className="flex items-center gap-1.5 px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-xl text-xs font-bold border border-slate-700 cursor-pointer transition shadow-sm">
-            <Upload className="w-4 h-4 text-blue-400" />
-            <span>Nạp File JSON</span>
+          <label className="flex-1 sm:flex-none flex items-center justify-center gap-1 px-2.5 sm:px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-xl text-xs font-bold border border-slate-700 cursor-pointer transition shadow-sm active:scale-95">
+            <Upload className="w-3.5 h-3.5 text-blue-400" />
+            <span>Nạp JSON</span>
             <input
               type="file"
               accept=".json"
@@ -284,49 +284,49 @@ export const QuestionManager: React.FC<QuestionManagerProps> = ({
           {/* Export JSON Button */}
           <button
             onClick={handleExportJson}
-            className="flex items-center gap-1.5 px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-xl text-xs font-bold border border-slate-700 transition shadow-sm"
+            className="flex-1 sm:flex-none flex items-center justify-center gap-1 px-2.5 sm:px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-xl text-xs font-bold border border-slate-700 transition shadow-sm active:scale-95"
           >
-            <Download className="w-4 h-4 text-emerald-400" />
-            <span>Tải File JSON</span>
+            <Download className="w-3.5 h-3.5 text-emerald-400" />
+            <span>Tải JSON</span>
           </button>
 
           {/* Reset to defaults */}
           <button
             onClick={handleResetToDefaults}
-            className="flex items-center gap-1.5 px-3 py-2 bg-slate-800 hover:bg-slate-700 text-amber-300 rounded-xl text-xs font-medium border border-slate-700 transition"
+            className="flex-1 sm:flex-none flex items-center justify-center gap-1 px-2.5 sm:px-3 py-2 bg-slate-800 hover:bg-slate-700 text-amber-300 rounded-xl text-xs font-medium border border-slate-700 transition active:scale-95"
             title="Khôi phục lại các câu hỏi mẫu ban đầu"
           >
-            <RotateCcw className="w-4 h-4" />
-            <span className="hidden sm:inline">Khôi Phục Mẫu</span>
+            <RotateCcw className="w-3.5 h-3.5" />
+            <span>Mẫu Gốc</span>
           </button>
         </div>
       </div>
 
       {/* Tabs */}
-      <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-        <div className="flex items-center gap-2">
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between border-b border-slate-800 pb-3 gap-2">
+        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0">
           <button
             onClick={() => setCurrentTab('main')}
-            className={`px-4 py-2 rounded-xl text-sm font-bold transition flex items-center gap-2 ${
+            className={`px-3 sm:px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition flex items-center gap-1.5 shrink-0 ${
               currentTab === 'main'
                 ? 'bg-rose-600 text-white shadow-md shadow-rose-600/30'
                 : 'bg-slate-900 text-slate-400 hover:text-white border border-slate-800'
             }`}
           >
-            <Layers className="w-4 h-4" />
-            <span>Câu Hỏi Vòng Bảng ({localQuestions.length})</span>
+            <Layers className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+            <span>Vòng Bảng ({localQuestions.length})</span>
           </button>
 
           <button
             onClick={() => setCurrentTab('fast-money')}
-            className={`px-4 py-2 rounded-xl text-sm font-bold transition flex items-center gap-2 ${
+            className={`px-3 sm:px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition flex items-center gap-1.5 shrink-0 ${
               currentTab === 'fast-money'
                 ? 'bg-purple-600 text-white shadow-md shadow-purple-600/30'
                 : 'bg-slate-900 text-slate-400 hover:text-white border border-slate-800'
             }`}
           >
-            <Sparkles className="w-4 h-4" />
-            <span>Vòng Đặc Biệt ({localFMQuestions.length})</span>
+            <Sparkles className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+            <span>Đặc Biệt ({localFMQuestions.length})</span>
           </button>
 
           <button
@@ -340,21 +340,21 @@ export const QuestionManager: React.FC<QuestionManagerProps> = ({
               );
               setCurrentTab('json-raw');
             }}
-            className={`px-4 py-2 rounded-xl text-sm font-bold transition flex items-center gap-2 ${
+            className={`px-3 sm:px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition flex items-center gap-1.5 shrink-0 ${
               currentTab === 'json-raw'
                 ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/30'
                 : 'bg-slate-900 text-slate-400 hover:text-white border border-slate-800'
             }`}
           >
-            <Code className="w-4 h-4" />
-            <span>Soạn Mã JSON Trực Tiếp</span>
+            <Code className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+            <span>Mã JSON</span>
           </button>
         </div>
 
         {currentTab === 'main' && (
           <button
             onClick={handleAddNewQuestion}
-            className="flex items-center gap-1.5 px-4 py-2 bg-gradient-to-r from-rose-600 to-amber-600 hover:from-rose-500 hover:to-amber-500 text-white rounded-xl text-xs font-black shadow-lg shadow-rose-600/20 active:scale-95 transition"
+            className="flex items-center justify-center gap-1.5 px-3.5 sm:px-4 py-2 bg-gradient-to-r from-rose-600 to-amber-600 hover:from-rose-500 hover:to-amber-500 text-white rounded-xl text-xs font-black shadow-lg shadow-rose-600/20 active:scale-95 transition"
           >
             <Plus className="w-4 h-4 stroke-[3]" />
             Thêm Câu Hỏi Mới

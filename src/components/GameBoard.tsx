@@ -171,41 +171,41 @@ export const GameBoard: React.FC<GameBoardProps> = ({
   const slots = Array.from({ length: totalSlots }).map((_, i) => currentQuestion.answers[i] || null);
 
   return (
-    <div className="relative min-h-[calc(100vh-65px)] bg-radial from-slate-900 via-slate-950 to-black p-4 md:p-6 flex flex-col justify-between overflow-hidden">
+    <div className="relative h-full flex-1 bg-radial from-slate-900 via-slate-950 to-black p-2 sm:p-3 md:p-4 flex flex-col justify-between overflow-hidden">
       
       {/* Background Decorative TV Studio Elements */}
       <div className="absolute inset-0 bg-[linear-gradient(to_right,#1e293b15_1px,transparent_1px),linear-gradient(to_bottom,#1e293b15_1px,transparent_1px)] bg-[size:4rem_4rem] pointer-events-none" />
       <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[300px] bg-blue-600/10 blur-[120px] rounded-full pointer-events-none" />
 
-      {/* Top Banner: Round Multiplier & Round Bank */}
-      <div className="relative z-10 max-w-6xl mx-auto w-full mb-3">
-        <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+      {/* Top Banner (Desktop Version - md+) */}
+      <div className="hidden md:block relative z-10 max-w-7xl mx-auto w-full mb-1.5 shrink-0">
+        <div className="flex items-center justify-between gap-3 lg:gap-4">
           
           {/* Team A Score Box */}
           <div 
             onClick={() => onAwardBank('teamA')}
             title="Bấm để cộng điểm tích lũy vòng cho Đội A"
-            className={`w-full md:w-64 p-3 rounded-2xl border transition-all cursor-pointer select-none ${
+            className={`w-52 lg:w-60 p-2 lg:p-2.5 rounded-xl border transition-all cursor-pointer select-none ${
               state.controllingTeam === 'teamA'
                 ? 'bg-red-950/80 border-red-500 shadow-lg shadow-red-500/30 ring-2 ring-red-400'
                 : 'bg-slate-900/80 border-slate-800 hover:border-red-500/50'
             }`}
           >
-            <div className="flex items-center justify-between mb-1">
-              <div className="flex items-center gap-2">
-                <span className="w-3 h-3 rounded-full bg-red-500 animate-pulse" />
-                <span className="font-bold text-sm tracking-wide text-red-400 truncate max-w-[120px]">
+            <div className="flex items-center justify-between mb-0.5">
+              <div className="flex items-center gap-1.5">
+                <span className="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse" />
+                <span className="font-bold text-xs lg:text-sm tracking-wide text-red-400 truncate max-w-[120px]">
                   {state.teams.teamA.name}
                 </span>
               </div>
               {state.controllingTeam === 'teamA' && (
-                <span className="text-[10px] bg-red-500/20 text-red-300 px-1.5 py-0.5 rounded flex items-center gap-1 font-semibold">
-                  <Shield className="w-3 h-3" /> Quyền chơi
+                <span className="text-[9px] bg-red-500/20 text-red-300 px-1 py-0.5 rounded flex items-center gap-0.5 font-semibold">
+                  <Shield className="w-2.5 h-2.5" /> Quyền
                 </span>
               )}
             </div>
-            <div className="bg-slate-950/90 rounded-xl py-2 px-4 border border-slate-800 text-center">
-              <span className="font-mono font-black text-3xl md:text-4xl text-red-400 tracking-wider">
+            <div className="bg-slate-950/90 rounded-lg py-1 px-3 border border-slate-800 text-center">
+              <span className="font-mono font-black text-2xl lg:text-3xl xl:text-4xl text-red-400 tracking-wider">
                 {state.teams.teamA.score}
               </span>
             </div>
@@ -214,12 +214,12 @@ export const GameBoard: React.FC<GameBoardProps> = ({
           {/* Center: Chung Sức Logo, Round Bank & Multiplier */}
           <div className="flex flex-col items-center">
             {/* Chung Sức Show Logo */}
-            <div className="mb-2 transition-transform hover:scale-105">
-              <ChungSucLogo variant="full" size="sm" animated={true} />
+            <div className="mb-1 transition-transform hover:scale-105">
+              <ChungSucLogo variant="full" size="xs" animated={true} />
             </div>
 
             {/* Round info & switcher */}
-            <div className="flex items-center gap-2 mb-1">
+            <div className="flex items-center gap-1.5 mb-1">
               {onSetRound && (
                 <button
                   onClick={() => onSetRound(state.currentRoundIndex - 1)}
@@ -227,17 +227,17 @@ export const GameBoard: React.FC<GameBoardProps> = ({
                   className="p-1 rounded-lg bg-slate-800/80 hover:bg-slate-700 text-slate-400 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed border border-slate-700 transition"
                   title="Vòng trước (Phím P)"
                 >
-                  <ChevronLeft className="w-3.5 h-3.5" />
+                  <ChevronLeft className="w-3 h-3" />
                 </button>
               )}
 
-              <span className="px-3 py-0.5 rounded-full bg-amber-500/20 border border-amber-500/40 text-amber-300 text-xs font-bold uppercase tracking-wider">
+              <span className="px-2.5 py-0.5 rounded-full bg-amber-500/20 border border-amber-500/40 text-amber-300 text-[11px] font-bold uppercase tracking-wider">
                 Vòng {state.currentRoundIndex + 1} / {state.questions.length}
               </span>
 
               {multiplier > 1 && (
-                <span className="px-2.5 py-0.5 rounded-full bg-gradient-to-r from-amber-500 to-red-500 text-slate-950 text-xs font-black uppercase tracking-wider animate-bounce">
-                  Điểm x{multiplier}
+                <span className="px-2 py-0.5 rounded-full bg-gradient-to-r from-amber-500 to-red-500 text-slate-950 text-[10px] font-black uppercase tracking-wider animate-bounce">
+                  x{multiplier}
                 </span>
               )}
 
@@ -253,34 +253,33 @@ export const GameBoard: React.FC<GameBoardProps> = ({
                   className="p-1 rounded-lg bg-slate-800/80 hover:bg-slate-700 text-slate-400 hover:text-white border border-slate-700 transition"
                   title={state.currentRoundIndex < state.questions.length - 1 ? "Vòng tiếp theo (Phím N)" : "Vào Vòng Đặc Biệt (Phím N)"}
                 >
-                  <ChevronRight className="w-3.5 h-3.5" />
+                  <ChevronRight className="w-3 h-3" />
                 </button>
               )}
             </div>
 
-
             {/* Round Bank Board */}
-            <div className="bg-gradient-to-b from-slate-900 via-slate-950 to-slate-900 p-2 md:p-3 rounded-2xl border-2 border-amber-500/60 glow-gold shadow-2xl min-w-[180px] md:min-w-[220px] text-center">
-              <p className="text-[11px] uppercase tracking-widest text-amber-300/80 font-bold mb-0.5">
+            <div className="bg-gradient-to-b from-slate-900 via-slate-950 to-slate-900 py-1 px-3 md:py-1.5 md:px-4 rounded-xl border-2 border-amber-500/60 glow-gold shadow-xl min-w-[150px] md:min-w-[180px] text-center">
+              <p className="text-[10px] uppercase tracking-widest text-amber-300/80 font-bold">
                 Điểm Tích Lũy Vòng
               </p>
-              <div className="font-mono font-black text-4xl md:text-5xl text-yellow-300 tracking-wider drop-shadow-[0_0_15px_rgba(253,224,71,0.5)]">
+              <div className="font-mono font-black text-2xl lg:text-3xl xl:text-4xl text-yellow-300 tracking-wider drop-shadow-[0_0_12px_rgba(253,224,71,0.5)] leading-tight">
                 {state.roundBank}
               </div>
             </div>
 
             {/* Strike Indicators */}
-            <div className="flex items-center gap-2 mt-2">
+            <div className="flex items-center gap-1.5 mt-1">
               {[1, 2, 3].map((num) => (
                 <div
                   key={num}
-                  className={`w-7 h-7 rounded-lg flex items-center justify-center border font-black text-sm transition-all ${
+                  className={`w-6 h-6 rounded-md flex items-center justify-center border font-black text-xs transition-all ${
                     state.strikes >= num
-                      ? 'bg-red-600 border-red-400 text-white glow-red shadow-lg'
+                      ? 'bg-red-600 border-red-400 text-white glow-red shadow-md'
                       : 'bg-slate-900/60 border-slate-800 text-slate-700'
                   }`}
                 >
-                  <X className="w-4 h-4 stroke-[3]" />
+                  <X className="w-3.5 h-3.5 stroke-[3]" />
                 </div>
               ))}
             </div>
@@ -290,27 +289,27 @@ export const GameBoard: React.FC<GameBoardProps> = ({
           <div 
             onClick={() => onAwardBank('teamB')}
             title="Bấm để cộng điểm tích lũy vòng cho Đội B"
-            className={`w-full md:w-64 p-3 rounded-2xl border transition-all cursor-pointer select-none ${
+            className={`w-52 lg:w-60 p-2 lg:p-2.5 rounded-xl border transition-all cursor-pointer select-none ${
               state.controllingTeam === 'teamB'
                 ? 'bg-blue-950/80 border-blue-500 shadow-lg shadow-blue-500/30 ring-2 ring-blue-400'
                 : 'bg-slate-900/80 border-slate-800 hover:border-blue-500/50'
             }`}
           >
-            <div className="flex items-center justify-between mb-1">
-              <div className="flex items-center gap-2">
-                <span className="w-3 h-3 rounded-full bg-blue-500 animate-pulse" />
-                <span className="font-bold text-sm tracking-wide text-blue-400 truncate max-w-[120px]">
+            <div className="flex items-center justify-between mb-0.5">
+              <div className="flex items-center gap-1.5">
+                <span className="w-2.5 h-2.5 rounded-full bg-blue-500 animate-pulse" />
+                <span className="font-bold text-xs lg:text-sm tracking-wide text-blue-400 truncate max-w-[120px]">
                   {state.teams.teamB.name}
                 </span>
               </div>
               {state.controllingTeam === 'teamB' && (
-                <span className="text-[10px] bg-blue-500/20 text-blue-300 px-1.5 py-0.5 rounded flex items-center gap-1 font-semibold">
-                  <Shield className="w-3 h-3" /> Quyền chơi
+                <span className="text-[9px] bg-blue-500/20 text-blue-300 px-1 py-0.5 rounded flex items-center gap-0.5 font-semibold">
+                  <Shield className="w-2.5 h-2.5" /> Quyền
                 </span>
               )}
             </div>
-            <div className="bg-slate-950/90 rounded-xl py-2 px-4 border border-slate-800 text-center">
-              <span className="font-mono font-black text-3xl md:text-4xl text-blue-400 tracking-wider">
+            <div className="bg-slate-950/90 rounded-lg py-1 px-3 border border-slate-800 text-center">
+              <span className="font-mono font-black text-2xl lg:text-3xl xl:text-4xl text-blue-400 tracking-wider">
                 {state.teams.teamB.score}
               </span>
             </div>
@@ -319,32 +318,124 @@ export const GameBoard: React.FC<GameBoardProps> = ({
         </div>
       </div>
 
+      {/* Top Banner (Mobile Dedicated 3-Column Scoreboard - < md) */}
+      <div className="md:hidden relative z-10 w-full mb-1.5 bg-slate-950/90 border border-slate-800 rounded-xl p-1.5 shadow-lg backdrop-blur shrink-0">
+        <div className="grid grid-cols-12 gap-1 items-center">
+          
+          {/* Team A (Col 1-4) */}
+          <div 
+            onClick={() => onAwardBank('teamA')}
+            className={`col-span-4 p-1.5 rounded-lg border text-center transition-all cursor-pointer select-none active:scale-95 ${
+              state.controllingTeam === 'teamA'
+                ? 'bg-red-950/90 border-red-500 shadow-md shadow-red-500/20 ring-1 ring-red-400'
+                : 'bg-slate-900/80 border-slate-800/80'
+            }`}
+          >
+            <div className="flex items-center justify-center gap-1 mb-0.5">
+              <span className="w-2 h-2 rounded-full bg-red-500" />
+              <span className="font-bold text-[11px] text-red-300 truncate max-w-[70px]">
+                {state.teams.teamA.name}
+              </span>
+            </div>
+            <div className="font-mono font-black text-xl text-red-400 leading-none">
+              {state.teams.teamA.score}
+            </div>
+            {state.controllingTeam === 'teamA' && (
+              <span className="inline-block mt-0.5 text-[8px] bg-red-500/30 text-red-200 px-1 rounded font-bold">
+                Quyền
+              </span>
+            )}
+          </div>
+
+          {/* Center Info: Bank, Multiplier & Strikes (Col 5-8) */}
+          <div className="col-span-4 flex flex-col items-center justify-center text-center px-1">
+            <div className="flex items-center justify-center gap-1 mb-0.5">
+              <span className="text-[9px] font-extrabold text-amber-300 bg-amber-500/20 px-1 py-0.2 rounded border border-amber-500/30">
+                V{state.currentRoundIndex + 1}
+              </span>
+              {multiplier > 1 && (
+                <span className="text-[8px] font-black text-slate-950 bg-amber-400 px-1 rounded animate-pulse">
+                  x{multiplier}
+                </span>
+              )}
+            </div>
+
+            {/* Round Bank */}
+            <div className="font-mono font-black text-xl text-yellow-300 drop-shadow-[0_0_8px_rgba(253,224,71,0.5)] leading-tight">
+              {state.roundBank}
+            </div>
+
+            {/* Strikes */}
+            <div className="flex items-center gap-1 mt-0.5">
+              {[1, 2, 3].map((num) => (
+                <div
+                  key={num}
+                  className={`w-4 h-4 rounded flex items-center justify-center border font-black text-[10px] transition-all ${
+                    state.strikes >= num
+                      ? 'bg-red-600 border-red-400 text-white glow-red shadow-sm'
+                      : 'bg-slate-900 border-slate-800 text-slate-700'
+                  }`}
+                >
+                  <X className="w-2.5 h-2.5 stroke-[3]" />
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Team B (Col 9-12) */}
+          <div 
+            onClick={() => onAwardBank('teamB')}
+            className={`col-span-4 p-1.5 rounded-lg border text-center transition-all cursor-pointer select-none active:scale-95 ${
+              state.controllingTeam === 'teamB'
+                ? 'bg-blue-950/90 border-blue-500 shadow-md shadow-blue-500/20 ring-1 ring-blue-400'
+                : 'bg-slate-900/80 border-slate-800/80'
+            }`}
+          >
+            <div className="flex items-center justify-center gap-1 mb-0.5">
+              <span className="w-2 h-2 rounded-full bg-blue-500" />
+              <span className="font-bold text-[11px] text-blue-300 truncate max-w-[70px]">
+                {state.teams.teamB.name}
+              </span>
+            </div>
+            <div className="font-mono font-black text-xl text-blue-400 leading-none">
+              {state.teams.teamB.score}
+            </div>
+            {state.controllingTeam === 'teamB' && (
+              <span className="inline-block mt-0.5 text-[8px] bg-blue-500/30 text-blue-200 px-1 rounded font-bold">
+                Quyền
+              </span>
+            )}
+          </div>
+
+        </div>
+      </div>
+
       {/* Main Question Display Banner */}
-      <div className="relative z-10 max-w-5xl mx-auto w-full my-2">
-        <div className="bg-gradient-to-r from-blue-950/90 via-slate-900/90 to-blue-950/90 border border-blue-500/30 rounded-2xl p-4 text-center shadow-xl backdrop-blur">
+      <div className="relative z-10 max-w-7xl mx-auto w-full my-1 shrink-0">
+        <div className="bg-gradient-to-r from-blue-950/90 via-slate-900/90 to-blue-950/90 border border-blue-500/30 rounded-xl p-2 sm:p-2.5 md:p-3 text-center shadow-lg backdrop-blur">
           {currentQuestion.category && (
-            <span className="inline-block text-xs font-semibold text-amber-400/90 uppercase tracking-widest mb-1">
+            <span className="inline-block text-[9px] sm:text-[10px] md:text-xs font-semibold text-amber-400/90 uppercase tracking-widest mb-0.5">
               Chủ đề: {currentQuestion.category}
             </span>
           )}
-          <h2 className="text-xl md:text-2xl lg:text-3xl font-extrabold text-slate-100 tracking-wide leading-snug">
+          <h2 className="text-sm sm:text-base md:text-lg lg:text-xl xl:text-2xl font-extrabold text-slate-100 tracking-wide leading-snug">
             "{currentQuestion.question}"
           </h2>
         </div>
       </div>
 
-      {/* 8-Tile Answer Board */}
-      <div className="relative z-10 max-w-5xl mx-auto w-full my-auto py-2">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
+      {/* 8-Tile Answer Board (Responsive 2-Column x 4-Row Grid, dynamically fills remaining screen height) */}
+      <div className="relative z-10 max-w-7xl mx-auto w-full my-auto py-1 flex-1 flex flex-col justify-center min-h-0">
+        <div className="grid grid-cols-2 grid-rows-4 gap-1.5 sm:gap-2 md:gap-2.5 lg:gap-3 w-full h-full min-h-0">
           {slots.map((answer, index) => {
             if (!answer) {
               // Empty inactive slot
               return (
                 <div
                   key={`empty-${index}`}
-                  className="h-16 md:h-20 rounded-xl bg-slate-950/40 border border-slate-900 flex items-center justify-center opacity-30"
+                  className="w-full h-full min-h-[38px] sm:min-h-[46px] md:min-h-[52px] rounded-xl bg-slate-950/40 border border-slate-900 flex items-center justify-center opacity-30"
                 >
-                  <span className="text-slate-700 font-mono text-lg font-bold">{index + 1}</span>
+                  <span className="text-slate-700 font-mono text-sm sm:text-base md:text-lg lg:text-xl font-bold">{index + 1}</span>
                 </div>
               );
             }
@@ -361,7 +452,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({
                     onRevealAnswer(answer.id);
                   }
                 }}
-                className="perspective-1000 h-16 md:h-20 cursor-pointer select-none group"
+                className="perspective-1000 w-full h-full min-h-[38px] sm:min-h-[46px] md:min-h-[52px] cursor-pointer select-none group relative block"
               >
                 <div
                   className={`w-full h-full relative transition-transform duration-500 transform-style-3d ${
@@ -369,28 +460,28 @@ export const GameBoard: React.FC<GameBoardProps> = ({
                   }`}
                 >
                   {/* Front: Hidden Tile with Number */}
-                  <div className="absolute inset-0 backface-hidden rounded-xl bg-gradient-to-b from-blue-900 via-blue-950 to-slate-950 border-2 border-blue-500/40 group-hover:border-amber-400/70 shadow-lg flex items-center justify-center px-4 transition-all">
-                    <div className="w-10 h-10 md:w-12 md:h-12 rounded-full bg-blue-950 border-2 border-blue-400/50 group-hover:border-amber-400 group-hover:bg-amber-500/20 flex items-center justify-center shadow-inner transition-colors">
-                      <span className="font-mono font-black text-xl md:text-2xl text-blue-300 group-hover:text-amber-300">
+                  <div className="absolute top-0 left-0 w-full h-full backface-hidden rounded-xl bg-gradient-to-b from-blue-900 via-blue-950 to-slate-950 border-2 border-blue-500/40 group-hover:border-amber-400/70 shadow-lg flex items-center justify-center px-3 sm:px-5 transition-all">
+                    <div className="w-8 h-8 sm:w-9 sm:h-9 md:w-11 md:h-11 lg:w-12 lg:h-12 rounded-full bg-blue-950 border-2 border-blue-400/50 group-hover:border-amber-400 group-hover:bg-amber-500/20 flex items-center justify-center shadow-inner transition-colors">
+                      <span className="font-mono font-black text-base sm:text-lg md:text-xl lg:text-2xl text-blue-300 group-hover:text-amber-300">
                         {index + 1}
                       </span>
                     </div>
                   </div>
 
                   {/* Back: Revealed Answer and Points */}
-                  <div className="absolute inset-0 backface-hidden rotate-y-180 rounded-xl bg-gradient-to-r from-blue-950 via-slate-900 to-blue-950 border-2 border-amber-400 glow-gold shadow-xl flex items-center justify-between px-3 md:px-5 overflow-hidden">
+                  <div className="absolute top-0 left-0 w-full h-full backface-hidden rotate-y-180 rounded-xl bg-gradient-to-r from-blue-950 via-slate-900 to-blue-950 border-2 border-amber-400 glow-gold shadow-xl flex items-center justify-between px-2.5 sm:px-3 md:px-5 lg:px-6 overflow-hidden">
                     {/* Left: Answer Text */}
-                    <div className="flex items-center space-x-2 md:space-x-3 truncate mr-2">
-                      <span className="w-7 h-7 rounded-full bg-amber-500 text-slate-950 font-black text-xs md:text-sm flex items-center justify-center shrink-0">
+                    <div className="flex items-center space-x-2 sm:space-x-3 md:space-x-4 min-w-0 flex-1 mr-2">
+                      <span className="w-5 h-5 sm:w-6 sm:h-6 md:w-7 md:h-7 lg:w-8 lg:h-8 rounded-full bg-amber-500 text-slate-950 font-black text-[10px] sm:text-xs md:text-sm flex items-center justify-center shrink-0">
                         {index + 1}
                       </span>
-                      <span className="font-bold text-base md:text-xl lg:text-2xl text-slate-100 tracking-wide uppercase truncate">
+                      <span className="font-bold text-xs sm:text-sm md:text-base lg:text-lg xl:text-xl text-slate-100 tracking-wide uppercase truncate">
                         {answer.text}
                       </span>
                     </div>
 
                     {/* Right: Points Badge */}
-                    <div className="bg-gradient-to-tr from-amber-500 to-yellow-300 text-slate-950 font-mono font-black text-lg md:text-2xl px-3 md:px-4 py-1 rounded-lg shrink-0 shadow-md">
+                    <div className="bg-gradient-to-tr from-amber-500 to-yellow-300 text-slate-950 font-mono font-black text-xs sm:text-sm md:text-lg lg:text-xl xl:text-2xl px-2 sm:px-3 md:px-4 py-0.5 sm:py-1 rounded-md sm:rounded-lg shrink-0 shadow-md">
                       {answer.points * multiplier}
                     </div>
                   </div>
@@ -401,8 +492,62 @@ export const GameBoard: React.FC<GameBoardProps> = ({
         </div>
       </div>
 
-      {/* Footer Quick Controls / Shortcut Hints */}
-      <div className="relative z-10 max-w-4xl mx-auto w-full mt-2 pt-2 border-t border-slate-900 flex flex-wrap items-center justify-between text-xs text-slate-500 gap-2">
+      {/* Mobile Dedicated Quick Touch Toolbar (< md) */}
+      <div className="md:hidden relative z-10 w-full mt-1 pt-1 border-t border-slate-800/80 flex items-center justify-between gap-1.5 shrink-0">
+        {/* Prev Round */}
+        {onSetRound && (
+          <button
+            onClick={() => onSetRound(state.currentRoundIndex - 1)}
+            disabled={state.currentRoundIndex === 0}
+            className="p-2.5 rounded-xl bg-slate-800 text-slate-300 disabled:opacity-30 border border-slate-700 active:scale-95 transition"
+            title="Vòng trước"
+          >
+            <ChevronLeft className="w-4 h-4" />
+          </button>
+        )}
+
+        {/* Strike Button */}
+        <button
+          onClick={() => onAddStrike(1)}
+          className="flex-1 py-2.5 px-2 bg-gradient-to-r from-red-600 to-red-700 active:scale-95 text-white font-black text-xs rounded-xl flex items-center justify-center gap-1 shadow-lg shadow-red-600/30 transition border border-red-400/50"
+        >
+          <X className="w-4 h-4 stroke-[3]" />
+          <span>+1X (Sai)</span>
+        </button>
+
+        {/* Speech / Voice button */}
+        <button
+          onClick={handleToggleVoice}
+          className={`flex-1 py-2.5 px-2 rounded-xl text-xs font-black flex items-center justify-center gap-1 transition active:scale-95 shadow-md ${
+            isListening
+              ? 'bg-red-600 text-white border border-red-400 shadow-red-600/40 animate-pulse'
+              : 'bg-indigo-600 text-white hover:bg-indigo-500 border border-indigo-400/50'
+          }`}
+        >
+          <Mic className="w-4 h-4" />
+          <span>{isListening ? 'Đang nghe' : 'Micro'}</span>
+        </button>
+
+        {/* Next Round */}
+        {onSetRound && (
+          <button
+            onClick={() => {
+              if (state.currentRoundIndex < state.questions.length - 1) {
+                onSetRound(state.currentRoundIndex + 1);
+              } else if (onViewChange) {
+                onViewChange('fast-money');
+              }
+            }}
+            className="p-2.5 rounded-xl bg-slate-800 text-slate-300 border border-slate-700 active:scale-95 transition"
+            title="Vòng sau"
+          >
+            <ChevronRight className="w-4 h-4" />
+          </button>
+        )}
+      </div>
+
+      {/* Desktop Footer Quick Controls / Shortcut Hints (md+) */}
+      <div className="hidden md:flex relative z-10 max-w-4xl mx-auto w-full mt-2 pt-2 border-t border-slate-900 flex-wrap items-center justify-between text-xs text-slate-500 gap-2">
         <div className="flex items-center gap-3">
           <span className="flex items-center gap-1">
             <kbd className="px-1.5 py-0.5 bg-slate-800 rounded border border-slate-700 text-slate-300 font-mono">1-8</kbd> Lật đáp án
@@ -430,7 +575,6 @@ export const GameBoard: React.FC<GameBoardProps> = ({
         <div className="text-slate-400">
           Tip: Bấm trực tiếp vào ô để lật, hoặc bấm <kbd className="px-1 py-0.5 bg-slate-800 rounded border border-slate-700 text-slate-300 font-mono">Space</kbd> để đọc câu trả lời!
         </div>
-
       </div>
 
       {/* Floating Real-time Voice Listening Indicator (No Popup) */}

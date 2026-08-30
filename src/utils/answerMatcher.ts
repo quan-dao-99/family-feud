@@ -42,18 +42,103 @@ export function normalizeText(str: string): string {
   return str
     .toLowerCase()
     .trim()
-    .replace(/[.,/#!$%^&*;:{}=\-_`~()?"'…]/g, ' ')
+    .replace(/[.,/#!$%^&*;:{}=\-_`~()?"'…–—]/g, ' ')
     .replace(/\s+/g, ' ')
     .trim();
 }
 
 /**
+ * Bảng quy đổi số từ 0 - 100 dạng chữ tiếng Việt sang chữ số
+ */
+const NUMBER_WORDS_MAP: Record<string, number> = {
+  'không': 0, 'khong': 0,
+  'một': 1, 'mot': 1, 'mốt': 1,
+  'hai': 2,
+  'ba': 3,
+  'bốn': 4, 'bon': 4, 'tư': 4, 'tu': 4,
+  'năm': 5, 'nam': 5, 'lăm': 5, 'lam': 5, 'nhăm': 5, 'nham': 5,
+  'sáu': 6, 'sau': 6,
+  'bảy': 7, 'bay': 7, 'bẩy': 7, 'bey': 7,
+  'tám': 8, 'tam': 8,
+  'chín': 9, 'chin': 9,
+  'mười': 10, 'muoi': 10,
+};
+
+const NUMBER_TO_WORDS: Record<number, string[]> = {
+  0: ['không', 'khong'],
+  1: ['một', 'mot', 'mốt'],
+  2: ['hai'],
+  3: ['ba'],
+  4: ['bốn', 'bon', 'tư'],
+  5: ['năm', 'nam', 'lăm', 'nhăm'],
+  6: ['sáu', 'sau'],
+  7: ['bảy', 'bay', 'bẩy'],
+  8: ['tám', 'tam'],
+  9: ['chín', 'chin'],
+  10: ['mười', 'muoi'],
+};
+
+/**
+ * Chuyển đổi chuỗi chữ số tiếng Việt cơ bản (0 - 100) sang số số
+ * Ví dụ: "hai mươi lăm" -> "25", "bảy" -> "7", "mười hai" -> "12"
+ */
+export function convertVietnameseWordsToNumber(text: string): string {
+  const norm = normalizeText(text);
+  if (!norm) return text;
+
+  // Single word numbers 0 - 10
+  if (NUMBER_WORDS_MAP[norm] !== undefined) {
+    return String(NUMBER_WORDS_MAP[norm]);
+  }
+
+  // Two word numbers (11 - 19)
+  if (norm.startsWith('mười ') || norm.startsWith('muoi ')) {
+    const unitWord = norm.replace(/^mư?ời\s+/, '').trim();
+    if (NUMBER_WORDS_MAP[unitWord] !== undefined) {
+      return String(10 + NUMBER_WORDS_MAP[unitWord]);
+    }
+  }
+
+  // Tens numbers: "hai mươi", "hai mươi lăm", "ba mươi", v.v.
+  const tensMatch = norm.match(/^(hai|ba|bốn|bon|tư|năm|nam|sáu|sau|bảy|bay|bẩy|tám|tam|chín|chin)\s+(mươi|muoi|chục|hăm)(\s+(một|mot|mốt|hai|ba|bốn|bon|tư|năm|nam|lăm|lam|nhăm|nham|sáu|sau|bảy|bay|bẩy|tám|tam|chín|chin))?$/);
+  if (tensMatch) {
+    const tensDigit = NUMBER_WORDS_MAP[tensMatch[1]] || 0;
+    const unitWord = tensMatch[4];
+    const unitDigit = unitWord ? (NUMBER_WORDS_MAP[unitWord] || 0) : 0;
+    return String(tensDigit * 10 + unitDigit);
+  }
+
+  return text;
+}
+
+/**
+ * Loại bỏ các từ đệm thông dụng khi người chơi trả lời trên gameshow
+ * Ví dụ: "Dạ thưa MC câu trả lời của em là bánh mì" -> "bánh mì"
+ */
+export function cleanSpokenTranscript(transcript: string): string {
+  let cleaned = normalizeText(transcript);
+  if (!cleaned) return '';
+
+  const fillerPrefixes = [
+    /^(dạ\s+)?(thưa\s+mc\s+)?câu\s+trả\s+lời\s+(của\s+(em|tôi|mình)\s+)?là\s+/i,
+    /^(dạ\s+)?(thưa\s+mc\s+)?đáp\s+án\s+(của\s+(em|tôi|mình)\s+)?là\s+/i,
+    /^(dạ\s+)?(tôi|em|mình)\s+(xin\s+)?(chọn|nghĩ\s+là|đoán\s+là|trả\s+lời\s+là)\s+/i,
+    /^(dạ\s+)?theo\s+(tôi|em|mình)\s+(thì\s+)?là\s+/i,
+    /^(dạ\s+)?chắc\s+là\s+/i,
+    /^(dạ\s+thưa\s+mc\s+|thưa\s+mc\s+|dạ\s+)/i,
+    /^(là\s+)/i,
+  ];
+
+  for (const prefix of fillerPrefixes) {
+    cleaned = cleaned.replace(prefix, '').trim();
+  }
+
+  return cleaned;
+}
+
+/**
  * Tách các biến thể của một câu trả lời trong game show.
- * Ví dụ:
- * - "Kẹt xe / Tắc đường" -> ["Kẹt xe", "Tắc đường", "Kẹt xe Tắc đường"]
- * - "Trang điểm (Makeup)" -> ["Trang điểm", "Makeup", "Trang điểm Makeup"]
- * - "Chocolate (Sô cô la)" -> ["Chocolate", "Sô cô la", "Chocolate Sô cô la"]
- * - "Bún bò / Bún riêu" -> ["Bún bò", "Bún riêu", "Bún bò Bún riêu"]
+ * Tự động tạo các biến thể số dạng chữ và số, ngoặc đơn, gạch chéo.
  */
 export function extractAnswerVariations(answerText: string): string[] {
   const rawNormalized = normalizeText(answerText);
@@ -69,7 +154,7 @@ export function extractAnswerVariations(answerText: string): string[] {
 
   for (const part of parts) {
     const cleaned = normalizeText(part);
-    if (cleaned && cleaned.length >= 2) {
+    if (cleaned && cleaned.length >= 1) {
       variations.add(cleaned);
     }
   }
@@ -83,11 +168,42 @@ export function extractAnswerVariations(answerText: string): string[] {
       if (cleanedInside) {
         variations.add(cleanedInside);
       }
-      // Nội dung bên ngoài ngoặc
       const outsideParen = normalizeText(answerText.replace(match, ''));
       if (outsideParen) {
         variations.add(outsideParen);
       }
+    }
+  }
+
+  // Thêm biến thể cho số (ví dụ "7" -> "bảy", "25 tuổi" -> "hai mươi lăm tuổi", "25")
+  const currentVars = Array.from(variations);
+  for (const v of currentVars) {
+    // Nếu v là số đơn lẻ (ví dụ "7")
+    const num = parseInt(v, 10);
+    if (!isNaN(num) && String(num) === v) {
+      const words = NUMBER_TO_WORDS[num];
+      if (words) {
+        words.forEach((w) => variations.add(w));
+      }
+    }
+
+    // Nếu v chứa số kèm chữ (ví dụ "25 tuổi")
+    const numPrefixMatch = v.match(/^(\d+)\s*(.*)$/);
+    if (numPrefixMatch) {
+      const digits = parseInt(numPrefixMatch[1], 10);
+      const suffix = numPrefixMatch[2];
+      variations.add(numPrefixMatch[1]); // e.g. "25"
+      if (digits <= 10 && NUMBER_TO_WORDS[digits]) {
+        NUMBER_TO_WORDS[digits].forEach((w) => {
+          variations.add(`${w} ${suffix}`.trim());
+          variations.add(w);
+        });
+      }
+    }
+
+    // Ngược lại: nếu v là chữ số tiếng Việt (ví dụ "bảy"), thêm "7"
+    if (NUMBER_WORDS_MAP[v] !== undefined) {
+      variations.add(String(NUMBER_WORDS_MAP[v]));
     }
   }
 
@@ -133,25 +249,31 @@ export function calculateSimilarity(s1: string, s2: string): number {
   if (!norm1 || !norm2) return 0;
   if (norm1 === norm2) return 1;
 
-  // 1. Kiểm tra bao hàm trực tiếp (Substring containment)
-  // Ví dụ: người chơi nói "bánh mì thịt" mà đáp án là "bánh mì" hoặc ngược lại
+  // 1. Kiểm tra quy đổi số tiếng Việt (ví dụ: người nói "bảy" mà đáp án là "7")
+  const num1 = convertVietnameseWordsToNumber(norm1);
+  const num2 = convertVietnameseWordsToNumber(norm2);
+  if (num1 === num2 || norm1 === num2 || num1 === norm2) {
+    return 1;
+  }
+
+  // 2. Kiểm tra bao hàm trực tiếp (Substring containment)
   if (norm1.includes(norm2) || norm2.includes(norm1)) {
     const minLen = Math.min(norm1.length, norm2.length);
     const maxLen = Math.max(norm1.length, norm2.length);
-    return Math.max(0.85, minLen / maxLen);
+    return Math.max(0.88, minLen / maxLen);
   }
 
-  // 2. Kiểm tra không dấu
+  // 3. Kiểm tra không dấu
   const nonAccent1 = removeVietnameseDiacritics(norm1);
   const nonAccent2 = removeVietnameseDiacritics(norm2);
   if (nonAccent1 === nonAccent2) {
     return 0.95;
   }
   if (nonAccent1.includes(nonAccent2) || nonAccent2.includes(nonAccent1)) {
-    return 0.8;
+    return 0.85;
   }
 
-  // 3. Kiểm tra tập hợp từ (Word overlap / Jaccard similarity)
+  // 4. Kiểm tra tập hợp từ (Word overlap / Jaccard similarity)
   const words1 = new Set(norm1.split(' '));
   const words2 = new Set(norm2.split(' '));
   let intersection = 0;
@@ -161,7 +283,7 @@ export function calculateSimilarity(s1: string, s2: string): number {
   const union = new Set([...words1, ...words2]).size;
   const jaccard = union > 0 ? intersection / union : 0;
 
-  // 4. Levenshtein similarity
+  // 5. Levenshtein similarity
   const maxLen = Math.max(norm1.length, norm2.length);
   const levDist = levenshteinDistance(norm1, norm2);
   const levSim = 1 - levDist / maxLen;
@@ -176,11 +298,12 @@ export function matchAnswer(
   transcript: string,
   answers: Answer[],
   revealedAnswerIds: string[] = [],
-  threshold: number = 0.65
+  threshold: number = 0.60
 ): MatchResult {
-  const cleanTranscript = normalizeText(transcript);
+  const rawClean = normalizeText(transcript);
+  const cleanTranscript = cleanSpokenTranscript(transcript);
 
-  if (!cleanTranscript || !answers || answers.length === 0) {
+  if ((!rawClean && !cleanTranscript) || !answers || answers.length === 0) {
     return {
       status: 'NO_MATCH',
       matchedAnswer: null,
@@ -199,7 +322,10 @@ export function matchAnswer(
   for (const ans of answers) {
     const variations = extractAnswerVariations(ans.text);
     for (const v of variations) {
-      const sim = calculateSimilarity(cleanTranscript, v);
+      // Test cả transcript đã lọc filler và transcript gốc
+      const simClean = calculateSimilarity(cleanTranscript, v);
+      const simRaw = calculateSimilarity(rawClean, v);
+      const sim = Math.max(simClean, simRaw);
 
       if (sim > (bestMatch?.similarity || 0)) {
         bestMatch = {
@@ -239,11 +365,12 @@ export function matchAnswer(
 export function matchFastMoneyAnswer(
   transcript: string,
   answers: FastMoneyAnswerOption[],
-  threshold: number = 0.65
+  threshold: number = 0.60
 ): FastMoneyMatchResult {
-  const cleanTranscript = normalizeText(transcript);
+  const rawClean = normalizeText(transcript);
+  const cleanTranscript = cleanSpokenTranscript(transcript);
 
-  if (!cleanTranscript || !answers || answers.length === 0) {
+  if ((!rawClean && !cleanTranscript) || !answers || answers.length === 0) {
     return {
       status: 'NO_MATCH',
       matchedAnswer: null,
@@ -262,7 +389,9 @@ export function matchFastMoneyAnswer(
   for (const ans of answers) {
     const variations = extractAnswerVariations(ans.text);
     for (const v of variations) {
-      const sim = calculateSimilarity(cleanTranscript, v);
+      const simClean = calculateSimilarity(cleanTranscript, v);
+      const simRaw = calculateSimilarity(rawClean, v);
+      const sim = Math.max(simClean, simRaw);
 
       if (sim > (bestMatch?.similarity || 0)) {
         bestMatch = {

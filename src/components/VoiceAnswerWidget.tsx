@@ -129,25 +129,25 @@ export const VoiceAnswerWidget: React.FC<VoiceAnswerWidgetProps> = ({
     : -1;
 
   return (
-    <div className={`bg-gradient-to-br from-slate-900 via-slate-950 to-indigo-950/40 border border-indigo-500/30 rounded-2xl p-4 md:p-5 shadow-xl ${className}`}>
+    <div className={`bg-gradient-to-br from-slate-900 via-slate-950 to-indigo-950/40 border border-indigo-500/30 rounded-2xl p-3 sm:p-4 md:p-5 shadow-xl ${className}`}>
       
       {/* Header Bar */}
-      <div className="flex items-center justify-between gap-2 mb-3 pb-2.5 border-b border-indigo-500/20">
+      <div className="flex items-center justify-between gap-2 mb-2.5 sm:mb-3 pb-2 sm:pb-2.5 border-b border-indigo-500/20">
         <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-amber-500 to-indigo-500 flex items-center justify-center shadow-md">
-            <Mic className="w-4 h-4 text-slate-950 font-bold" />
+          <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-gradient-to-tr from-amber-500 to-indigo-500 flex items-center justify-center shadow-md shrink-0">
+            <Mic className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-slate-950 font-bold" />
           </div>
           <div>
-            <div className="flex items-center gap-2">
-              <h3 className="font-extrabold text-sm md:text-base text-slate-100 flex items-center gap-1.5">
-                Nhận Diện Giọng Nói (Speech Recognition)
+            <div className="flex items-center gap-1.5">
+              <h3 className="font-extrabold text-xs sm:text-sm md:text-base text-slate-100 flex items-center gap-1">
+                Nhận Diện Giọng Nói
               </h3>
-              <span className="px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 text-[10px] font-bold border border-indigo-500/40 uppercase">
+              <span className="px-1.5 py-0.2 rounded-full bg-indigo-500/20 text-indigo-300 text-[9px] font-bold border border-indigo-500/40 uppercase">
                 AI Match
               </span>
             </div>
-            <p className="text-xs text-slate-400">
-              Bấm Micro để nghe người chơi đọc câu trả lời và tự động so khớp
+            <p className="text-[10px] sm:text-xs text-slate-400">
+              Bấm Micro để nghe câu trả lời và tự động so khớp
             </p>
           </div>
         </div>
@@ -155,14 +155,14 @@ export const VoiceAnswerWidget: React.FC<VoiceAnswerWidgetProps> = ({
         {/* Quick Settings Toggle Button */}
         <button
           onClick={() => setShowSettings(!showSettings)}
-          className={`p-2 rounded-xl border transition ${
+          className={`p-1.5 sm:p-2 rounded-xl border transition ${
             showSettings
               ? 'bg-indigo-600 text-white border-indigo-400'
               : 'bg-slate-800 text-slate-400 border-slate-700 hover:text-slate-200'
           }`}
           title="Tùy chọn nhận diện giọng nói"
         >
-          <Settings2 className="w-4 h-4" />
+          <Settings2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
         </button>
       </div>
 

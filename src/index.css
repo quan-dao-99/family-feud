@@ -1,26 +1,39 @@
-@import "tailwindcss";
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
 @layer base {
   body {
     @apply bg-slate-950 text-slate-100 min-h-screen overflow-x-hidden select-none font-sans;
+    -webkit-user-select: none;
+    user-select: none;
   }
 }
 
-/* 3D Card Flip styles */
+/* 3D Card Flip styles with WebKit prefixes for Smart TV / webOS browsers */
 .perspective-1000 {
+  -webkit-perspective: 1000px;
   perspective: 1000px;
 }
 
 .transform-style-3d {
+  -webkit-transform-style: preserve-3d;
   transform-style: preserve-3d;
 }
 
 .backface-hidden {
-  backface-visibility: hidden;
   -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  box-sizing: border-box;
 }
 
 .rotate-y-180 {
+  -webkit-transform: rotateY(180deg);
   transform: rotateY(180deg);
 }
 
@@ -38,47 +51,82 @@
 }
 
 .text-gold-gradient {
+  background: -webkit-linear-gradient(135deg, #fef08a 0%, #eab308 50%, #ca8a04 100%);
   background: linear-gradient(135deg, #fef08a 0%, #eab308 50%, #ca8a04 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
 }
 
 .text-silver-gradient {
+  background: -webkit-linear-gradient(135deg, #ffffff 0%, #cbd5e1 50%, #94a3b8 100%);
   background: linear-gradient(135deg, #ffffff 0%, #cbd5e1 50%, #94a3b8 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
 }
 
 /* Strike Animation */
-@keyframes strike-pop {
+@-webkit-keyframes strike-pop {
   0% {
+    -webkit-transform: scale(0.3) rotate(-15deg);
     transform: scale(0.3) rotate(-15deg);
     opacity: 0;
   }
   50% {
+    -webkit-transform: scale(1.15) rotate(5deg);
     transform: scale(1.15) rotate(5deg);
     opacity: 1;
   }
   75% {
+    -webkit-transform: scale(0.95) rotate(-2deg);
     transform: scale(0.95) rotate(-2deg);
   }
   100% {
+    -webkit-transform: scale(1) rotate(0deg);
+    transform: scale(1) rotate(0deg);
+    opacity: 1;
+  }
+}
+
+@keyframes strike-pop {
+  0% {
+    -webkit-transform: scale(0.3) rotate(-15deg);
+    transform: scale(0.3) rotate(-15deg);
+    opacity: 0;
+  }
+  50% {
+    -webkit-transform: scale(1.15) rotate(5deg);
+    transform: scale(1.15) rotate(5deg);
+    opacity: 1;
+  }
+  75% {
+    -webkit-transform: scale(0.95) rotate(-2deg);
+    transform: scale(0.95) rotate(-2deg);
+  }
+  100% {
+    -webkit-transform: scale(1) rotate(0deg);
     transform: scale(1) rotate(0deg);
     opacity: 1;
   }
 }
 
 .animate-strike {
+  -webkit-animation: strike-pop 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
   animation: strike-pop 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
 }
 
+@-webkit-keyframes shake {
+  0%, 100% { -webkit-transform: translateX(0); transform: translateX(0); }
+  20%, 60% { -webkit-transform: translateX(-10px) rotate(-1deg); transform: translateX(-10px) rotate(-1deg); }
+  40%, 80% { -webkit-transform: translateX(10px) rotate(1deg); transform: translateX(10px) rotate(1deg); }
+}
+
 @keyframes shake {
-  0%, 100% { transform: translateX(0); }
-  20%, 60% { transform: translateX(-10px) rotate(-1deg); }
-  40%, 80% { transform: translateX(10px) rotate(1deg); }
+  0%, 100% { -webkit-transform: translateX(0); transform: translateX(0); }
+  20%, 60% { -webkit-transform: translateX(-10px) rotate(-1deg); transform: translateX(-10px) rotate(-1deg); }
+  40%, 80% { -webkit-transform: translateX(10px) rotate(1deg); transform: translateX(10px) rotate(1deg); }
 }
 
 .animate-shake {
+  -webkit-animation: shake 0.4s ease-in-out;
   animation: shake 0.4s ease-in-out;
 }
-

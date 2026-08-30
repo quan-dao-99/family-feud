@@ -30,8 +30,8 @@
 - Tích hợp sẵn tệp mẫu [`sample_questions.json`](./sample_questions.json) và bộ câu hỏi mẫu tiếng Việt cực vui.
 
 ### 2. Chế độ 2 Màn hình chuyên nghiệp (TV / Máy chiếu / Zoom)
-- **Tab 1: Màn hình Game (Chiếu TV)**: Chiếu lên màn hình TV, máy chiếu, hoặc chia sẻ màn hình qua Zoom/Discord. Người chơi chỉ thấy các ô số bí mật, điểm tích lũy và bảng điểm 2 đội.
-- **Tab 2: Bảng điều khiển MC (Host)**: Dành riêng cho người dẫn chương trình xem trước mọi đáp án, bấm lật từng câu, bấm sai (+1X, +2X, +3X), gán quyền chơi và trao điểm tích lũy.
+- **Màn hình Game (Chiếu TV)**: Chiếu lên màn hình TV, máy chiếu, hoặc chia sẻ màn hình qua Zoom/Discord (`http://localhost:5173`). Người chơi chỉ thấy các ô số bí mật, điểm tích lũy và bảng điểm 2 đội (tab MC được ẩn hoàn toàn để tránh lộ đáp án).
+- **Bảng điều khiển MC (Host)**: Dành riêng cho người dẫn chương trình xem trước mọi đáp án, bấm lật từng câu, bấm sai (+1X, +2X, +3X), gán quyền chơi và trao điểm tích lũy. Truy cập qua đường dẫn: `http://localhost:5173/?view=host`.
 - Hai màn hình **tự động đồng bộ thời gian thực** thông qua `BroadcastChannel API` (không cần cấu hình mạng).
 
 ### 3. Vòng Đặc Biệt (Fast Money)

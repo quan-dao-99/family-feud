@@ -42,9 +42,9 @@ export interface UseSpeechRecognitionOptions {
 export function useSpeechRecognition(options: UseSpeechRecognitionOptions = {}) {
   const {
     lang = 'vi-VN',
-    continuous = true, // Default to continuous to prevent Chrome from auto-killing after 1s
+    continuous = true,
     interimResults = true,
-    silenceTimeoutMs = 1200, // Auto-finalize after 1.2s of silence following speech
+    silenceTimeoutMs = 1000, // Auto-finalize after 1.0s of silence following speech
     onResult,
     onError,
     onEnd,
@@ -58,9 +58,11 @@ export function useSpeechRecognition(options: UseSpeechRecognitionOptions = {}) 
 
   const recognitionRef = useRef<SpeechRecognitionInstance | null>(null);
   const isManuallyStoppedRef = useRef(false);
+  const isRestartingRef = useRef(false);
   const silenceTimerRef = useRef<number | null>(null);
+  const restartTimerRef = useRef<number | null>(null);
   const latestTranscriptRef = useRef<string>('');
-  const isFinalProcessedRef = useRef(false);
+  const lastFinalizedTextRef = useRef<string>('');
 
   // Audio level meter stream & context
   const audioContextRef = useRef<AudioContext | null>(null);
@@ -83,24 +85,38 @@ export function useSpeechRecognition(options: UseSpeechRecognitionOptions = {}) 
     onEndRef.current = onEnd;
   });
 
-  // Start real-time audio volume analyzer
+  // Start real-time audio volume analyzer safely
   const startAudioMeter = useCallback(async () => {
     if (typeof window === 'undefined' || !navigator.mediaDevices?.getUserMedia) return;
+    if (mediaStreamRef.current) return; // Already running
 
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+        },
+      });
       mediaStreamRef.current = stream;
 
-      const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+      const AudioCtx =
+        window.AudioContext ||
+        (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
       if (!AudioCtx) return;
 
       const audioCtx = new AudioCtx();
       audioContextRef.current = audioCtx;
 
+      // Handle suspended audio context on user interaction policies
+      if (audioCtx.state === 'suspended') {
+        await audioCtx.resume();
+      }
+
       const source = audioCtx.createMediaStreamSource(stream);
       const analyser = audioCtx.createAnalyser();
       analyser.fftSize = 256;
-      analyser.smoothingTimeConstant = 0.5;
+      analyser.smoothingTimeConstant = 0.4;
       source.connect(analyser);
 
       const bufferLength = analyser.frequencyBinCount;
@@ -115,8 +131,8 @@ export function useSpeechRecognition(options: UseSpeechRecognitionOptions = {}) 
           sum += dataArray[i];
         }
         const average = sum / bufferLength;
-        // Normalize 0 - 100 with boosted sensitivity
-        const normalized = Math.min(100, Math.round((average / 128) * 100 * 1.6));
+        // Normalize 0 - 100 with boosted sensitivity for clear visual feedback
+        const normalized = Math.min(100, Math.round((average / 128) * 100 * 1.8));
         setAudioLevel(normalized);
 
         animFrameRef.current = requestAnimationFrame(checkVolume);
@@ -134,7 +150,13 @@ export function useSpeechRecognition(options: UseSpeechRecognitionOptions = {}) 
       animFrameRef.current = null;
     }
     if (mediaStreamRef.current) {
-      mediaStreamRef.current.getTracks().forEach((track) => track.stop());
+      mediaStreamRef.current.getTracks().forEach((track) => {
+        try {
+          track.stop();
+        } catch {
+          // Ignore
+        }
+      });
       mediaStreamRef.current = null;
     }
     if (audioContextRef.current) {
@@ -148,27 +170,45 @@ export function useSpeechRecognition(options: UseSpeechRecognitionOptions = {}) 
     setAudioLevel(0);
   }, []);
 
+  // Finalize speech and trigger callback
   const finalizeSpeech = useCallback((textToFinalize: string) => {
-    const cleanText = textToFinalize.trim();
-    if (cleanText && !isFinalProcessedRef.current) {
-      isFinalProcessedRef.current = true;
-      setTranscript(cleanText);
-      setInterimTranscript('');
-      if (onResultRef.current) {
-        onResultRef.current(cleanText, true);
-      }
-    }
-  }, []);
-
-  const stopListening = useCallback(() => {
-    isManuallyStoppedRef.current = true;
     if (silenceTimerRef.current) {
       clearTimeout(silenceTimerRef.current);
       silenceTimerRef.current = null;
     }
 
-    // If there is any remaining unfinalized speech, finalize it now
-    if (latestTranscriptRef.current && !isFinalProcessedRef.current) {
+    const cleanText = textToFinalize.trim();
+    if (!cleanText) return;
+
+    // Prevent immediate duplicate firing of the exact same string in one burst
+    if (cleanText === lastFinalizedTextRef.current) return;
+    lastFinalizedTextRef.current = cleanText;
+
+    setTranscript(cleanText);
+    setInterimTranscript('');
+    latestTranscriptRef.current = '';
+
+    if (onResultRef.current) {
+      onResultRef.current(cleanText, true);
+    }
+  }, []);
+
+  const stopListening = useCallback(() => {
+    isManuallyStoppedRef.current = true;
+    isRestartingRef.current = false;
+
+    if (silenceTimerRef.current) {
+      clearTimeout(silenceTimerRef.current);
+      silenceTimerRef.current = null;
+    }
+
+    if (restartTimerRef.current) {
+      clearTimeout(restartTimerRef.current);
+      restartTimerRef.current = null;
+    }
+
+    // If there is any remaining unfinalized interim speech, finalize it now
+    if (latestTranscriptRef.current) {
       finalizeSpeech(latestTranscriptRef.current);
     }
 
@@ -187,7 +227,7 @@ export function useSpeechRecognition(options: UseSpeechRecognitionOptions = {}) 
     setTranscript('');
     setInterimTranscript('');
     latestTranscriptRef.current = '';
-    isFinalProcessedRef.current = false;
+    lastFinalizedTextRef.current = '';
     setError(null);
     if (silenceTimerRef.current) {
       clearTimeout(silenceTimerRef.current);
@@ -198,10 +238,21 @@ export function useSpeechRecognition(options: UseSpeechRecognitionOptions = {}) 
   const startListening = useCallback(
     (customLang?: string) => {
       if (!isSupported) {
-        const err = 'Trình duyệt không hỗ trợ Web Speech API. Hãy dùng Google Chrome, Microsoft Edge hoặc Safari.';
+        const err =
+          'Trình duyệt không hỗ trợ Web Speech API. Hãy dùng Google Chrome, Microsoft Edge hoặc Safari.';
         setError(err);
         if (onErrorRef.current) onErrorRef.current(err);
         return;
+      }
+
+      if (restartTimerRef.current) {
+        clearTimeout(restartTimerRef.current);
+        restartTimerRef.current = null;
+      }
+
+      if (silenceTimerRef.current) {
+        clearTimeout(silenceTimerRef.current);
+        silenceTimerRef.current = null;
       }
 
       // If already listening, stop previous session cleanly
@@ -214,62 +265,68 @@ export function useSpeechRecognition(options: UseSpeechRecognitionOptions = {}) 
       }
 
       isManuallyStoppedRef.current = false;
-      isFinalProcessedRef.current = false;
+      isRestartingRef.current = false;
       latestTranscriptRef.current = '';
+      lastFinalizedTextRef.current = '';
       setError(null);
       setTranscript('');
       setInterimTranscript('');
-
-      if (silenceTimerRef.current) {
-        clearTimeout(silenceTimerRef.current);
-        silenceTimerRef.current = null;
-      }
 
       try {
         const SpeechRecConstructor =
           window.SpeechRecognition || window.webkitSpeechRecognition;
         if (!SpeechRecConstructor) return;
 
+        const isMobile =
+          typeof navigator !== 'undefined' &&
+          /android|iphone|ipad|ipod/i.test(navigator.userAgent);
+
         const recognition = new SpeechRecConstructor();
         recognition.lang = customLang || lang;
-        recognition.continuous = continuous;
+        // On Android/mobile, native SpeechRecognizer works best with single-phrase per turn with seamless restart on onend
+        recognition.continuous = isMobile ? false : continuous;
         recognition.interimResults = interimResults;
         recognition.maxAlternatives = 3;
 
         recognition.onstart = () => {
           setIsListening(true);
-          startAudioMeter();
+          isRestartingRef.current = false;
+          // Avoid opening a concurrent getUserMedia stream on mobile to prevent Android audio HAL hardware contention
+          if (!isMobile) {
+            startAudioMeter();
+          } else {
+            setAudioLevel(40);
+          }
         };
 
         recognition.onresult = (event: SpeechRecognitionEventInit) => {
           let currentInterim = '';
-          let finalResult = '';
+          let currentFinal = '';
 
+          // Process the results from resultIndex
           for (let i = event.resultIndex; i < event.results.length; i++) {
             const resultItem = event.results[i];
             const text = resultItem[0]?.transcript || '';
 
             if (resultItem.isFinal) {
-              finalResult += text;
+              currentFinal += (currentFinal ? ' ' : '') + text;
             } else {
-              currentInterim += text;
+              currentInterim += (currentInterim ? ' ' : '') + text;
             }
           }
 
-          const currentSpoken = (finalResult || currentInterim || '').trim();
+          const activeSpoken = (currentFinal || currentInterim || '').trim();
 
-          if (currentSpoken) {
-            latestTranscriptRef.current = currentSpoken;
-            isFinalProcessedRef.current = false;
+          if (activeSpoken) {
+            latestTranscriptRef.current = activeSpoken;
 
-            if (finalResult) {
-              setTranscript(finalResult.trim());
-              setInterimTranscript('');
-              finalizeSpeech(finalResult.trim());
-            } else {
-              setInterimTranscript(currentInterim.trim());
+            if (currentFinal) {
+              finalizeSpeech(currentFinal.trim());
+            } else if (currentInterim) {
+              const cleanInterim = currentInterim.trim();
+              setInterimTranscript(cleanInterim);
               if (onResultRef.current) {
-                onResultRef.current(currentInterim.trim(), false);
+                onResultRef.current(cleanInterim, false);
               }
 
               // Auto-finalize interim after silence timeout
@@ -277,7 +334,7 @@ export function useSpeechRecognition(options: UseSpeechRecognitionOptions = {}) 
                 clearTimeout(silenceTimerRef.current);
               }
               silenceTimerRef.current = window.setTimeout(() => {
-                if (latestTranscriptRef.current && !isFinalProcessedRef.current) {
+                if (latestTranscriptRef.current) {
                   finalizeSpeech(latestTranscriptRef.current);
                 }
               }, silenceTimeoutMs);
@@ -288,21 +345,24 @@ export function useSpeechRecognition(options: UseSpeechRecognitionOptions = {}) 
         recognition.onerror = (event: { error: string; message?: string }) => {
           // 'no-speech' is a normal silence event in Web Speech API; do NOT treat as fatal
           if (event.error === 'no-speech') {
-            // If user has spoken something previously, finalize it
-            if (latestTranscriptRef.current && !isFinalProcessedRef.current) {
+            if (latestTranscriptRef.current) {
               finalizeSpeech(latestTranscriptRef.current);
             }
             return;
           }
 
+          if (event.error === 'aborted') {
+            // Ignored if abort was intentional or restarting
+            return;
+          }
+
           let errorMsg = `Lỗi nhận diện giọng nói: ${event.error}`;
           if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
-            errorMsg = 'Quyền truy cập Microphone bị từ chối. Vui lòng cấp quyền Microphone trên thanh địa chỉ của trình duyệt.';
+            errorMsg =
+              'Quyền truy cập Microphone bị từ chối. Vui lòng cấp quyền Microphone trên thanh địa chỉ của trình duyệt.';
           } else if (event.error === 'network') {
-            errorMsg = 'Lỗi kết nối tới máy chủ Google Speech. Vui lòng kiểm tra kết nối mạng/VPN.';
-          } else if (event.error === 'aborted') {
-            // Ignored if abort was intentional
-            return;
+            errorMsg =
+              'Lỗi kết nối tới máy chủ Google Speech. Vui lòng kiểm tra kết nối mạng/VPN.';
           }
 
           setError(errorMsg);
@@ -313,18 +373,27 @@ export function useSpeechRecognition(options: UseSpeechRecognitionOptions = {}) 
 
         recognition.onend = () => {
           // If ended with unfinalized speech, finalize now
-          if (latestTranscriptRef.current && !isFinalProcessedRef.current) {
+          if (latestTranscriptRef.current) {
             finalizeSpeech(latestTranscriptRef.current);
           }
 
-          // If not manually stopped and we're in continuous listening mode without error, restart seamlessly
-          if (!isManuallyStoppedRef.current && !isFinalProcessedRef.current) {
-            try {
-              recognition.start();
-              return;
-            } catch {
-              // Ignore restart error
+          // If in continuous mode and not manually stopped, restart seamlessly
+          if (!isManuallyStoppedRef.current && continuous) {
+            isRestartingRef.current = true;
+            if (restartTimerRef.current) {
+              clearTimeout(restartTimerRef.current);
             }
+            restartTimerRef.current = window.setTimeout(() => {
+              if (!isManuallyStoppedRef.current) {
+                try {
+                  recognition.start();
+                } catch {
+                  // If restart fails, create a fresh instance
+                  startListening(customLang || lang);
+                }
+              }
+            }, 80);
+            return;
           }
 
           setIsListening(false);
@@ -344,14 +413,27 @@ export function useSpeechRecognition(options: UseSpeechRecognitionOptions = {}) 
         if (onErrorRef.current) onErrorRef.current(errorMsg);
       }
     },
-    [isSupported, lang, continuous, interimResults, silenceTimeoutMs, startAudioMeter, finalizeSpeech, stopAudioMeter]
+    [
+      isSupported,
+      lang,
+      continuous,
+      interimResults,
+      silenceTimeoutMs,
+      startAudioMeter,
+      finalizeSpeech,
+      stopAudioMeter,
+    ]
   );
 
   // Cleanup on unmount
   useEffect(() => {
     return () => {
+      isManuallyStoppedRef.current = true;
       if (silenceTimerRef.current) {
         clearTimeout(silenceTimerRef.current);
+      }
+      if (restartTimerRef.current) {
+        clearTimeout(restartTimerRef.current);
       }
       stopAudioMeter();
       if (recognitionRef.current) {
@@ -376,3 +458,4 @@ export function useSpeechRecognition(options: UseSpeechRecognitionOptions = {}) 
     resetTranscript,
   };
 }
+

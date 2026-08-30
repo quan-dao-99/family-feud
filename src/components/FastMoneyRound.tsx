@@ -29,6 +29,7 @@ export const FastMoneyRound: React.FC<FastMoneyRoundProps> = ({
 }) => {
   const [activeTab, setActiveTab] = useState<'board' | 'mc'>('board');
   const [listeningQIndex, setListeningQIndex] = useState<number | null>(null);
+  const listeningQIndexRef = useRef<number | null>(null);
   const timerIntervalRef = useRef<number | null>(null);
 
   // Speech Recognition for Fast Money
@@ -41,25 +42,29 @@ export const FastMoneyRound: React.FC<FastMoneyRoundProps> = ({
     lang: 'vi-VN',
     continuous: false,
     interimResults: true,
+    silenceTimeoutMs: 1000,
     onResult: (text, isFinal) => {
-      if (isFinal && text && listeningQIndex !== null) {
-        const q = fastMoney.questions[listeningQIndex];
+      const qIdx = listeningQIndexRef.current ?? listeningQIndex;
+      if (isFinal && text && qIdx !== null) {
+        const q = fastMoney.questions[qIdx];
         const targetPlayer = fastMoney.activePlayer === 1 ? 'player1' : 'player2';
         if (q) {
           const match = matchFastMoneyAnswer(text, q.answers || []);
           if (match.status === 'MATCH' && match.matchedAnswer) {
-            handleEntryChange(targetPlayer, listeningQIndex, 'answer', match.matchedAnswer.text);
-            handleEntryChange(targetPlayer, listeningQIndex, 'points', match.matchedAnswer.points);
+            handleEntryChange(targetPlayer, qIdx, 'answer', match.matchedAnswer.text);
+            handleEntryChange(targetPlayer, qIdx, 'points', match.matchedAnswer.points);
             soundManager.playDing();
           } else {
-            handleEntryChange(targetPlayer, listeningQIndex, 'answer', text);
-            handleEntryChange(targetPlayer, listeningQIndex, 'points', 0);
+            handleEntryChange(targetPlayer, qIdx, 'answer', text);
+            handleEntryChange(targetPlayer, qIdx, 'points', 0);
           }
         }
+        listeningQIndexRef.current = null;
         setListeningQIndex(null);
       }
     },
     onEnd: () => {
+      listeningQIndexRef.current = null;
       setListeningQIndex(null);
     },
   });
@@ -67,8 +72,10 @@ export const FastMoneyRound: React.FC<FastMoneyRoundProps> = ({
   const handleToggleVoiceForQuestion = (qIndex: number) => {
     if (listeningQIndex === qIndex && isListening) {
       stopListening();
+      listeningQIndexRef.current = null;
       setListeningQIndex(null);
     } else {
+      listeningQIndexRef.current = qIndex;
       setListeningQIndex(qIndex);
       startListening('vi-VN');
     }
@@ -259,242 +266,335 @@ export const FastMoneyRound: React.FC<FastMoneyRoundProps> = ({
   };
 
   return (
-    <div className="max-w-7xl mx-auto p-4 md:p-6 space-y-6">
+    <div className="max-w-7xl mx-auto p-3 sm:p-4 md:p-6 space-y-4 sm:space-y-6">
       
       {/* Top Header with Timer and Score Goal */}
-      <div className="bg-gradient-to-r from-purple-950/80 via-slate-900 to-purple-950/80 border border-purple-500/30 rounded-3xl p-5 shadow-2xl backdrop-blur">
-        <div className="flex flex-col lg:flex-row items-center justify-between gap-6">
+      <div className="bg-gradient-to-r from-purple-950/80 via-slate-900 to-purple-950/80 border border-purple-500/30 rounded-2xl sm:rounded-3xl p-3.5 sm:p-5 shadow-2xl backdrop-blur">
+        <div className="flex flex-col lg:flex-row items-center justify-between gap-3 sm:gap-6">
           
           {/* Left: Info with Chung Suc Logo */}
-          <div className="flex items-center gap-3.5">
-            <ChungSucLogo variant="icon" size="lg" animated={true} />
+          <div className="flex items-center gap-3 w-full lg:w-auto">
+            <ChungSucLogo variant="icon" size="md" animated={true} />
             <div>
-              <div className="flex items-center gap-2 mb-1">
-                <span className="px-3 py-0.5 rounded-full bg-purple-500/20 text-purple-300 text-xs font-black uppercase tracking-wider border border-purple-500/40">
+              <div className="flex items-center gap-2 mb-0.5">
+                <span className="px-2.5 py-0.5 rounded-full bg-purple-500/20 text-purple-300 text-[10px] sm:text-xs font-black uppercase tracking-wider border border-purple-500/40">
                   Vòng Đặc Biệt
                 </span>
-                <span className="text-xs text-amber-400 font-bold">
-                  Mục tiêu: Đạt từ 200 điểm trở lên
+                <span className="text-[11px] sm:text-xs text-amber-400 font-bold">
+                  Mục tiêu: &ge; 200 điểm
                 </span>
               </div>
-              <h1 className="text-2xl md:text-3xl font-extrabold text-white tracking-wide">
-                Fast Money - 2 Người Chơi / 5 Câu Hỏi
+              <h1 className="text-lg sm:text-2xl md:text-3xl font-extrabold text-white tracking-wide">
+                Fast Money - 2 Người / 5 Câu Hỏi
               </h1>
             </div>
           </div>
 
-          {/* Center: Big Timer Controller */}
-          <div className="flex items-center gap-4 bg-slate-950/90 px-5 py-3 rounded-2xl border border-purple-500/40 shadow-inner">
-            <div className="flex items-center gap-2">
-              <Timer className="w-6 h-6 text-purple-400 animate-pulse" />
-              <div className="text-center">
-                <span className="text-[10px] text-slate-400 uppercase font-bold block">
-                  Đồng Hồ ({activePlayerNum === 1 ? 'Người 1' : 'Người 2'})
-                </span>
-                <span className={`font-mono font-black text-4xl tracking-wider ${
-                  currentTimer <= 5 ? 'text-red-500 animate-ping' : 'text-purple-300'
-                }`}>
-                  {currentTimer < 10 ? `0${currentTimer}` : currentTimer}s
-                </span>
+          {/* Center & Right: Timer & Total Points on Mobile and Desktop */}
+          <div className="flex items-center justify-between lg:justify-end gap-3 w-full lg:w-auto">
+            {/* Big Timer Controller */}
+            <div className="flex-1 lg:flex-none flex items-center justify-between sm:justify-start gap-2 sm:gap-4 bg-slate-950/90 px-3 sm:px-5 py-2 sm:py-3 rounded-2xl border border-purple-500/40 shadow-inner">
+              <div className="flex items-center gap-2">
+                <Timer className="w-5 h-5 sm:w-6 sm:h-6 text-purple-400 animate-pulse shrink-0" />
+                <div className="text-left sm:text-center">
+                  <span className="text-[9px] sm:text-[10px] text-slate-400 uppercase font-bold block">
+                    Đồng Hồ ({activePlayerNum === 1 ? 'P1' : 'P2'})
+                  </span>
+                  <span className={`font-mono font-black text-2xl sm:text-4xl tracking-wider leading-none ${
+                    currentTimer <= 5 ? 'text-red-500 animate-ping' : 'text-purple-300'
+                  }`}>
+                    {currentTimer < 10 ? `0${currentTimer}` : currentTimer}s
+                  </span>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-1 sm:gap-1.5 ml-1 sm:ml-2">
+                <button
+                  onClick={toggleTimer}
+                  className={`p-2 sm:p-2.5 rounded-xl text-white font-bold transition flex items-center gap-1 shadow-md active:scale-95 ${
+                    isTimerRunning
+                      ? 'bg-amber-600 hover:bg-amber-500'
+                      : 'bg-emerald-600 hover:bg-emerald-500 shadow-emerald-600/30'
+                  }`}
+                  title={isTimerRunning ? 'Tạm dừng' : 'Bắt đầu đếm ngược'}
+                >
+                  {isTimerRunning ? <Pause className="w-4 h-4 sm:w-5 sm:h-5" /> : <Play className="w-4 h-4 sm:w-5 sm:h-5" />}
+                </button>
+
+                <button
+                  onClick={() => resetTimer(activePlayerNum === 1 ? 20 : 25)}
+                  className="p-2 sm:p-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition active:scale-95"
+                  title={`Đặt lại ${activePlayerNum === 1 ? '20s' : '25s'}`}
+                >
+                  <RotateCcw className="w-4 h-4 sm:w-5 sm:h-5" />
+                </button>
               </div>
             </div>
 
-            <div className="flex items-center gap-1.5 ml-2">
-              <button
-                onClick={toggleTimer}
-                className={`p-2.5 rounded-xl text-white font-bold transition flex items-center gap-1 shadow-md ${
-                  isTimerRunning
-                    ? 'bg-amber-600 hover:bg-amber-500'
-                    : 'bg-emerald-600 hover:bg-emerald-500 shadow-emerald-600/30'
-                }`}
-              >
-                {isTimerRunning ? <Pause className="w-5 h-5" /> : <Play className="w-5 h-5" />}
-              </button>
-
-              <button
-                onClick={() => resetTimer(activePlayerNum === 1 ? 20 : 25)}
-                className="p-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition"
-                title={`Đặt lại ${activePlayerNum === 1 ? '20s' : '25s'}`}
-              >
-                <RotateCcw className="w-5 h-5" />
-              </button>
-            </div>
-          </div>
-
-          {/* Right: Total Combined Points */}
-          <div className="bg-slate-950/90 px-6 py-3 rounded-2xl border-2 border-amber-500/60 glow-gold text-center min-w-[170px]">
-            <span className="text-xs text-amber-300 font-extrabold uppercase tracking-widest block">
-              Tổng Điểm
-            </span>
-            <div className="font-mono font-black text-4xl md:text-5xl text-yellow-300 drop-shadow-[0_0_15px_rgba(253,224,71,0.5)]">
-              {combinedTotal} <span className="text-xl text-amber-400/80">/ 200</span>
+            {/* Total Combined Points */}
+            <div className="bg-slate-950/90 px-3 sm:px-6 py-2 sm:py-3 rounded-2xl border-2 border-amber-500/60 glow-gold text-center min-w-[120px] sm:min-w-[170px] shrink-0">
+              <span className="text-[10px] sm:text-xs text-amber-300 font-extrabold uppercase tracking-widest block leading-tight">
+                Tổng Điểm
+              </span>
+              <div className="font-mono font-black text-2xl sm:text-4xl md:text-5xl text-yellow-300 drop-shadow-[0_0_15px_rgba(253,224,71,0.5)] leading-tight">
+                {combinedTotal} <span className="text-sm sm:text-xl text-amber-400/80">/ 200</span>
+              </div>
             </div>
           </div>
 
         </div>
       </div>
 
-      {/* View Switcher: Display Board vs MC Inputs */}
-      <div className="flex items-center justify-between bg-slate-900 p-2 rounded-2xl border border-slate-800">
-        <div className="flex items-center gap-2">
+      {/* View Switcher: Display Board vs MC Inputs & Player Toggle */}
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between bg-slate-900 p-1.5 sm:p-2 rounded-2xl border border-slate-800 gap-2">
+        <div className="flex items-center gap-1.5">
           <button
             onClick={() => setActiveTab('board')}
-            className={`px-4 py-2 rounded-xl text-sm font-bold transition ${
+            className={`flex-1 sm:flex-none px-3 sm:px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition text-center ${
               activeTab === 'board'
                 ? 'bg-purple-600 text-white shadow-md'
                 : 'text-slate-400 hover:text-white'
             }`}
           >
-            Màn Hình Sân Khấu (Board)
+            Màn Hình Sân Khấu
           </button>
           <button
             onClick={() => setActiveTab('mc')}
-            className={`px-4 py-2 rounded-xl text-sm font-bold transition ${
+            className={`flex-1 sm:flex-none px-3 sm:px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition text-center ${
               activeTab === 'mc'
                 ? 'bg-amber-500 text-slate-950 shadow-md'
                 : 'text-slate-400 hover:text-white'
             }`}
           >
-            Nhập Đáp Án & Điểm (MC)
+            Nhập Đáp Án (MC)
           </button>
         </div>
 
         {/* Player Switcher */}
-        <div className="flex items-center gap-2">
-          <span className="text-xs text-slate-400 font-medium hidden sm:inline">Lượt thi:</span>
+        <div className="flex items-center justify-end gap-1.5">
+          <span className="text-[11px] sm:text-xs text-slate-400 font-medium hidden xs:inline">Lượt thi:</span>
           <button
             onClick={() => {
               onUpdateFastMoney({ ...fastMoney, activePlayer: 1 });
             }}
-            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1 ${
+            className={`flex-1 sm:flex-none px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center justify-center gap-1 ${
               fastMoney.activePlayer === 1
                 ? 'bg-blue-600 text-white ring-2 ring-blue-400'
                 : 'bg-slate-800 text-slate-400 hover:text-white'
             }`}
           >
             <User className="w-3.5 h-3.5" />
-            Người 1 (20s)
+            P1 (20s)
           </button>
           <button
             onClick={() => {
               onUpdateFastMoney({ ...fastMoney, activePlayer: 2 });
             }}
-            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1 ${
+            className={`flex-1 sm:flex-none px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center justify-center gap-1 ${
               fastMoney.activePlayer === 2
                 ? 'bg-purple-600 text-white ring-2 ring-purple-400'
                 : 'bg-slate-800 text-slate-400 hover:text-white'
             }`}
           >
             <Users className="w-3.5 h-3.5" />
-            Người 2 (25s)
+            P2 (25s)
           </button>
         </div>
       </div>
 
       {/* Mode 1: Main Stage TV Display Board */}
       {activeTab === 'board' && (
-        <div className="bg-slate-950 border border-slate-800 rounded-3xl p-6 shadow-2xl space-y-4">
-          
-          <div className="grid grid-cols-12 gap-4 text-xs font-bold uppercase tracking-wider text-slate-400 border-b border-slate-800 pb-3">
-            <div className="col-span-1 text-center">#</div>
-            <div className="col-span-4 md:col-span-5 text-blue-400 flex items-center gap-1">
-              <User className="w-3.5 h-3.5" /> {fastMoney.player1.name}
-            </div>
-            <div className="col-span-1 text-center text-blue-400">Điểm</div>
-            <div className="col-span-4 md:col-span-5 text-purple-400 flex items-center gap-1">
-              <Users className="w-3.5 h-3.5" /> {fastMoney.player2.name}
-            </div>
-            <div className="col-span-1 text-center text-purple-400">Điểm</div>
-          </div>
-
-          {fastMoney.questions.map((q, idx) => {
-            const p1 = fastMoney.player1.entries[idx] || { answer: '', points: 0, revealedAnswer: false, revealedPoints: false };
-            const p2 = fastMoney.player2.entries[idx] || { answer: '', points: 0, revealedAnswer: false, revealedPoints: false };
-
-            return (
-              <div key={q.id || idx} className="grid grid-cols-12 gap-2 md:gap-4 items-center">
-                
-                {/* Question index */}
-                <div className="col-span-1 flex items-center justify-center">
-                  <span className="w-7 h-7 rounded-full bg-slate-800 border border-slate-700 text-slate-300 font-mono font-bold text-xs flex items-center justify-center">
-                    {idx + 1}
-                  </span>
-                </div>
-
-                {/* Player 1 Answer Box */}
-                <div
-                  onClick={() => toggleRevealAnswer('player1', idx)}
-                  className={`col-span-4 md:col-span-5 h-14 rounded-xl border flex items-center px-4 cursor-pointer select-none transition-all ${
-                    p1.revealedAnswer
-                      ? 'bg-blue-950/80 border-blue-500/80 text-blue-100'
-                      : 'bg-slate-900/60 border-slate-800 text-slate-600 hover:border-slate-700'
-                  }`}
-                >
-                  <span className="font-extrabold text-base md:text-lg uppercase tracking-wide truncate">
-                    {p1.revealedAnswer ? p1.answer || '—' : '••••••••••'}
-                  </span>
-                </div>
-
-                {/* Player 1 Points */}
-                <div
-                  onClick={() => toggleRevealPoints('player1', idx)}
-                  className={`col-span-1 h-14 rounded-xl border flex items-center justify-center cursor-pointer select-none transition-all ${
-                    p1.revealedPoints
-                      ? 'bg-amber-500/20 border-amber-400 text-amber-300 font-mono font-black text-xl'
-                      : 'bg-slate-900/60 border-slate-800 text-slate-600'
-                  }`}
-                >
-                  {p1.revealedPoints ? p1.points : '—'}
-                </div>
-
-                {/* Player 2 Answer Box */}
-                <div
-                  onClick={() => toggleRevealAnswer('player2', idx)}
-                  className={`col-span-4 md:col-span-5 h-14 rounded-xl border flex items-center px-4 cursor-pointer select-none transition-all ${
-                    p2.revealedAnswer
-                      ? 'bg-purple-950/80 border-purple-500/80 text-purple-100'
-                      : 'bg-slate-900/60 border-slate-800 text-slate-600 hover:border-slate-700'
-                  }`}
-                >
-                  <span className="font-extrabold text-base md:text-lg uppercase tracking-wide truncate">
-                    {p2.revealedAnswer ? p2.answer || '—' : '••••••••••'}
-                  </span>
-                </div>
-
-                {/* Player 2 Points */}
-                <div
-                  onClick={() => toggleRevealPoints('player2', idx)}
-                  className={`col-span-1 h-14 rounded-xl border flex items-center justify-center cursor-pointer select-none transition-all ${
-                    p2.revealedPoints
-                      ? 'bg-amber-500/20 border-amber-400 text-amber-300 font-mono font-black text-xl'
-                      : 'bg-slate-900/60 border-slate-800 text-slate-600'
-                  }`}
-                >
-                  {p2.revealedPoints ? p2.points : '—'}
-                </div>
-
+        <>
+          {/* Desktop Stage Board (md+) */}
+          <div className="hidden md:block bg-slate-950 border border-slate-800 rounded-3xl p-6 shadow-2xl space-y-4">
+            <div className="grid grid-cols-12 gap-4 text-xs font-bold uppercase tracking-wider text-slate-400 border-b border-slate-800 pb-3">
+              <div className="col-span-1 text-center">#</div>
+              <div className="col-span-5 text-blue-400 flex items-center gap-1">
+                <User className="w-3.5 h-3.5" /> {fastMoney.player1.name}
               </div>
-            );
-          })}
+              <div className="col-span-1 text-center text-blue-400">Điểm</div>
+              <div className="col-span-4 text-purple-400 flex items-center gap-1">
+                <Users className="w-3.5 h-3.5" /> {fastMoney.player2.name}
+              </div>
+              <div className="col-span-1 text-center text-purple-400">Điểm</div>
+            </div>
 
-          {/* Subtotals & Grand Total Bar */}
-          <div className="grid grid-cols-12 gap-2 md:gap-4 items-center pt-4 border-t border-slate-800">
-            <div className="col-span-1"></div>
-            <div className="col-span-4 md:col-span-5 text-right font-bold text-slate-400 text-sm">
-              Điểm Người 1:
-            </div>
-            <div className="col-span-1 text-center font-mono font-black text-2xl text-blue-400">
-              {p1Total}
-            </div>
-            <div className="col-span-4 md:col-span-5 text-right font-bold text-slate-400 text-sm">
-              Điểm Người 2:
-            </div>
-            <div className="col-span-1 text-center font-mono font-black text-2xl text-purple-400">
-              {p2Total}
+            {fastMoney.questions.map((q, idx) => {
+              const p1 = fastMoney.player1.entries[idx] || { answer: '', points: 0, revealedAnswer: false, revealedPoints: false };
+              const p2 = fastMoney.player2.entries[idx] || { answer: '', points: 0, revealedAnswer: false, revealedPoints: false };
+
+              return (
+                <div key={q.id || idx} className="grid grid-cols-12 gap-4 items-center">
+                  {/* Question index */}
+                  <div className="col-span-1 flex items-center justify-center">
+                    <span className="w-7 h-7 rounded-full bg-slate-800 border border-slate-700 text-slate-300 font-mono font-bold text-xs flex items-center justify-center">
+                      {idx + 1}
+                    </span>
+                  </div>
+
+                  {/* Player 1 Answer Box */}
+                  <div
+                    onClick={() => toggleRevealAnswer('player1', idx)}
+                    className={`col-span-5 h-14 rounded-xl border flex items-center px-4 cursor-pointer select-none transition-all ${
+                      p1.revealedAnswer
+                        ? 'bg-blue-950/80 border-blue-500/80 text-blue-100'
+                        : 'bg-slate-900/60 border-slate-800 text-slate-600 hover:border-slate-700'
+                    }`}
+                  >
+                    <span className="font-extrabold text-base md:text-lg uppercase tracking-wide truncate">
+                      {p1.revealedAnswer ? p1.answer || '—' : '••••••••••'}
+                    </span>
+                  </div>
+
+                  {/* Player 1 Points */}
+                  <div
+                    onClick={() => toggleRevealPoints('player1', idx)}
+                    className={`col-span-1 h-14 rounded-xl border flex items-center justify-center cursor-pointer select-none transition-all ${
+                      p1.revealedPoints
+                        ? 'bg-amber-500/20 border-amber-400 text-amber-300 font-mono font-black text-xl'
+                        : 'bg-slate-900/60 border-slate-800 text-slate-600'
+                    }`}
+                  >
+                    {p1.revealedPoints ? p1.points : '—'}
+                  </div>
+
+                  {/* Player 2 Answer Box */}
+                  <div
+                    onClick={() => toggleRevealAnswer('player2', idx)}
+                    className={`col-span-4 h-14 rounded-xl border flex items-center px-4 cursor-pointer select-none transition-all ${
+                      p2.revealedAnswer
+                        ? 'bg-purple-950/80 border-purple-500/80 text-purple-100'
+                        : 'bg-slate-900/60 border-slate-800 text-slate-600 hover:border-slate-700'
+                    }`}
+                  >
+                    <span className="font-extrabold text-base md:text-lg uppercase tracking-wide truncate">
+                      {p2.revealedAnswer ? p2.answer || '—' : '••••••••••'}
+                    </span>
+                  </div>
+
+                  {/* Player 2 Points */}
+                  <div
+                    onClick={() => toggleRevealPoints('player2', idx)}
+                    className={`col-span-1 h-14 rounded-xl border flex items-center justify-center cursor-pointer select-none transition-all ${
+                      p2.revealedPoints
+                        ? 'bg-amber-500/20 border-amber-400 text-amber-300 font-mono font-black text-xl'
+                        : 'bg-slate-900/60 border-slate-800 text-slate-600'
+                    }`}
+                  >
+                    {p2.revealedPoints ? p2.points : '—'}
+                  </div>
+                </div>
+              );
+            })}
+
+            {/* Subtotals & Grand Total Bar */}
+            <div className="grid grid-cols-12 gap-4 items-center pt-4 border-t border-slate-800">
+              <div className="col-span-1"></div>
+              <div className="col-span-5 text-right font-bold text-slate-400 text-sm">
+                Điểm Người 1:
+              </div>
+              <div className="col-span-1 text-center font-mono font-black text-2xl text-blue-400">
+                {p1Total}
+              </div>
+              <div className="col-span-4 text-right font-bold text-slate-400 text-sm">
+                Điểm Người 2:
+              </div>
+              <div className="col-span-1 text-center font-mono font-black text-2xl text-purple-400">
+                {p2Total}
+              </div>
             </div>
           </div>
 
-        </div>
+          {/* Mobile Dedicated Stage Cards (< md) */}
+          <div className="md:hidden space-y-3">
+            {fastMoney.questions.map((q, idx) => {
+              const p1 = fastMoney.player1.entries[idx] || { answer: '', points: 0, revealedAnswer: false, revealedPoints: false };
+              const p2 = fastMoney.player2.entries[idx] || { answer: '', points: 0, revealedAnswer: false, revealedPoints: false };
+
+              return (
+                <div key={q.id || idx} className="bg-slate-950 border border-slate-800 rounded-2xl p-3 shadow-lg space-y-2">
+                  <div className="flex items-center gap-2">
+                    <span className="w-5 h-5 rounded-md bg-purple-500/20 text-purple-300 font-mono font-bold text-xs flex items-center justify-center shrink-0">
+                      #{idx + 1}
+                    </span>
+                    <h3 className="font-bold text-xs sm:text-sm text-slate-200 truncate">
+                      "{q.question}"
+                    </h3>
+                  </div>
+
+                  {/* Player 1 Row */}
+                  <div className="flex items-center gap-1.5">
+                    <span className="w-6 text-[10px] font-black text-blue-400 shrink-0">P1</span>
+                    <div
+                      onClick={() => toggleRevealAnswer('player1', idx)}
+                      className={`flex-1 h-11 rounded-xl border px-3 flex items-center cursor-pointer select-none transition-all active:scale-[0.99] ${
+                        p1.revealedAnswer
+                          ? 'bg-blue-950/80 border-blue-500/80 text-blue-100'
+                          : 'bg-slate-900/60 border-slate-800 text-slate-600'
+                      }`}
+                    >
+                      <span className="font-extrabold text-xs sm:text-sm uppercase tracking-wide truncate">
+                        {p1.revealedAnswer ? p1.answer || '—' : '••••••••••'}
+                      </span>
+                    </div>
+
+                    <div
+                      onClick={() => toggleRevealPoints('player1', idx)}
+                      className={`w-14 h-11 rounded-xl border flex items-center justify-center cursor-pointer select-none transition-all shrink-0 active:scale-95 ${
+                        p1.revealedPoints
+                          ? 'bg-amber-500/20 border-amber-400 text-amber-300 font-mono font-black text-base'
+                          : 'bg-slate-900/60 border-slate-800 text-slate-600'
+                      }`}
+                    >
+                      {p1.revealedPoints ? `${p1.points}đ` : '—'}
+                    </div>
+                  </div>
+
+                  {/* Player 2 Row */}
+                  <div className="flex items-center gap-1.5">
+                    <span className="w-6 text-[10px] font-black text-purple-400 shrink-0">P2</span>
+                    <div
+                      onClick={() => toggleRevealAnswer('player2', idx)}
+                      className={`flex-1 h-11 rounded-xl border px-3 flex items-center cursor-pointer select-none transition-all active:scale-[0.99] ${
+                        p2.revealedAnswer
+                          ? 'bg-purple-950/80 border-purple-500/80 text-purple-100'
+                          : 'bg-slate-900/60 border-slate-800 text-slate-600'
+                      }`}
+                    >
+                      <span className="font-extrabold text-xs sm:text-sm uppercase tracking-wide truncate">
+                        {p2.revealedAnswer ? p2.answer || '—' : '••••••••••'}
+                      </span>
+                    </div>
+
+                    <div
+                      onClick={() => toggleRevealPoints('player2', idx)}
+                      className={`w-14 h-11 rounded-xl border flex items-center justify-center cursor-pointer select-none transition-all shrink-0 active:scale-95 ${
+                        p2.revealedPoints
+                          ? 'bg-amber-500/20 border-amber-400 text-amber-300 font-mono font-black text-base'
+                          : 'bg-slate-900/60 border-slate-800 text-slate-600'
+                      }`}
+                    >
+                      {p2.revealedPoints ? `${p2.points}đ` : '—'}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+
+            {/* Mobile Subtotals */}
+            <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-3 flex items-center justify-around text-center">
+              <div>
+                <span className="text-[10px] text-blue-400 font-bold block">Điểm Người 1</span>
+                <span className="font-mono font-black text-2xl text-blue-300">{p1Total}đ</span>
+              </div>
+              <div className="h-8 w-px bg-slate-800" />
+              <div>
+                <span className="text-[10px] text-purple-400 font-bold block">Điểm Người 2</span>
+                <span className="font-mono font-black text-2xl text-purple-300">{p2Total}đ</span>
+              </div>
+            </div>
+          </div>
+        </>
       )}
 
       {/* Mode 2: MC Input & Controls */}
