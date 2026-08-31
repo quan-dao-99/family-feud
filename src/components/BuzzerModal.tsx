@@ -1,12 +1,15 @@
-import { useEffect, useState } from 'react';
-import type { GameState } from '../types/game';
-import { Bell, RotateCcw, Trophy, Users, User, RotateCw } from 'lucide-react';
+import { useEffect, useState, useCallback } from 'react';
+import type { GameState, ViewMode } from '../types/game';
+import { Bell, RotateCcw, Trophy, Users, User, RotateCw, QrCode, Smartphone } from 'lucide-react';
 import { ChungSucLogo } from './ChungSucLogo';
 
 interface BuzzerModalProps {
   state: GameState;
   onTriggerBuzzer: (team: 'teamA' | 'teamB') => void;
   onResetBuzzer: () => void;
+  onTriggerFaceOffBuzzer?: (team: 'teamA' | 'teamB') => void;
+  onOpenBuzzerQr?: () => void;
+  onViewChange?: (view: ViewMode) => void;
 }
 
 type BuzzerMode = 'split' | 'single-a' | 'single-b' | 'desktop';
@@ -15,20 +18,28 @@ export const BuzzerModal: React.FC<BuzzerModalProps> = ({
   state,
   onTriggerBuzzer,
   onResetBuzzer,
+  onTriggerFaceOffBuzzer,
+  onOpenBuzzerQr,
+  onViewChange,
 }) => {
   const [buzzerTime, setBuzzerTime] = useState<string | null>(null);
   const [mobileMode, setMobileMode] = useState<BuzzerMode>('split');
   const [flipTopPlayer, setFlipTopPlayer] = useState(true); // Rotate top player text 180deg for face-to-face table play
 
-  const handleBuzz = (team: 'teamA' | 'teamB') => {
+  const handleBuzz = useCallback((team: 'teamA' | 'teamB') => {
     if (!state.buzzerLocked) {
       if (typeof navigator !== 'undefined' && navigator.vibrate) {
         navigator.vibrate([100, 50, 100]);
       }
       setBuzzerTime(new Date().toLocaleTimeString('vi-VN', { hour12: false, minute: '2-digit', second: '2-digit', fractionalSecondDigits: 3 }));
-      onTriggerBuzzer(team);
+      
+      if (state.faceOff && state.faceOff.status === 'buzzer_waiting' && onTriggerFaceOffBuzzer) {
+        onTriggerFaceOffBuzzer(team);
+      } else {
+        onTriggerBuzzer(team);
+      }
     }
-  };
+  }, [state.buzzerLocked, state.faceOff, onTriggerFaceOffBuzzer, onTriggerBuzzer]);
 
   // Keyboard shortcut listener for buzzers
   useEffect(() => {
@@ -57,7 +68,7 @@ export const BuzzerModal: React.FC<BuzzerModalProps> = ({
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [state.buzzerLocked, onTriggerBuzzer, onResetBuzzer]);
+  }, [state.buzzerLocked, handleBuzz, onResetBuzzer]);
 
   return (
     <div className="max-w-4xl mx-auto p-3 sm:p-6 md:p-8 space-y-4 sm:space-y-6">
@@ -72,9 +83,39 @@ export const BuzzerModal: React.FC<BuzzerModalProps> = ({
         <h1 className="text-2xl sm:text-3xl md:text-4xl font-black text-white tracking-wide">
           Ai Nhanh Tay Hơn?
         </h1>
-        <p className="text-slate-400 text-xs sm:text-sm max-w-md mx-auto">
-          Đại diện 2 đội bấm chuông trên màn hình hoặc dùng phím tắt để giành quyền trả lời!
-        </p>
+        <div className="flex flex-wrap items-center justify-center gap-2 pt-1">
+          {onOpenBuzzerQr && (
+            <button
+              onClick={onOpenBuzzerQr}
+              className="px-3.5 py-1.5 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40 text-xs font-bold transition flex items-center gap-1.5 shadow-md active:scale-95"
+            >
+              <QrCode className="w-4 h-4" />
+              <span>Quét Mã QR Chuông 2 Đội (Mở Camera Điện Thoại)</span>
+            </button>
+          )}
+
+          {onViewChange && (
+            <div className="flex items-center gap-1.5">
+              <button
+                onClick={() => onViewChange('buzzer-a')}
+                className="px-3 py-1.5 rounded-xl bg-red-600/30 hover:bg-red-600/50 text-red-300 border border-red-500/40 text-xs font-bold transition flex items-center gap-1"
+                title="Mở toàn màn hình chuông Đội Đỏ"
+              >
+                <Smartphone className="w-3.5 h-3.5" />
+                <span>Trang Chuông Đội Đỏ</span>
+              </button>
+
+              <button
+                onClick={() => onViewChange('buzzer-b')}
+                className="px-3 py-1.5 rounded-xl bg-blue-600/30 hover:bg-blue-600/50 text-blue-300 border border-blue-500/40 text-xs font-bold transition flex items-center gap-1"
+                title="Mở toàn màn hình chuông Đội Xanh"
+              >
+                <Smartphone className="w-3.5 h-3.5" />
+                <span>Trang Chuông Đội Xanh</span>
+              </button>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Mobile Mode Switcher Selector */}

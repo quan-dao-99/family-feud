@@ -54,7 +54,25 @@ export interface Team {
   color: string;
 }
 
-export type ViewMode = 'board' | 'host' | 'fast-money' | 'questions' | 'buzzer';
+export type ViewMode = 'board' | 'host' | 'fast-money' | 'questions' | 'buzzer' | 'buzzer-a' | 'buzzer-b';
+
+export type FaceOffStatus = 'idle' | 'buzzer_waiting' | 'first_answer' | 'second_answer' | 'completed';
+
+export interface FaceOffAnswerInfo {
+  answerId: string | null;
+  rank: number | null; // 1-based rank (1 is top answer)
+  text: string | null;
+  points: number;
+}
+
+export interface FaceOffState {
+  status: FaceOffStatus;
+  buzzedTeam: 'teamA' | 'teamB' | null;
+  firstAnswer: FaceOffAnswerInfo | null;
+  secondAnswer: FaceOffAnswerInfo | null;
+  winnerTeam: 'teamA' | 'teamB' | null;
+  winnerReason?: string;
+}
 
 export interface GameState {
   teams: {
@@ -74,6 +92,9 @@ export interface GameState {
   roundBank: number;
   controllingTeam: 'teamA' | 'teamB' | null;
   
+  // Face-Off (Tranh chuông đầu vòng) state
+  faceOff: FaceOffState;
+
   // Fast money state
   fastMoney: FastMoneyState;
   
@@ -101,5 +122,12 @@ export type SyncAction =
   | { type: 'RESET_GAME' }
   | { type: 'TRIGGER_BUZZER'; team: 'teamA' | 'teamB' }
   | { type: 'RESET_BUZZER' }
+  | { type: 'TRIGGER_FACE_OFF_BUZZER'; team: 'teamA' | 'teamB' }
+  | { type: 'PROCESS_FACE_OFF_ANSWER'; answerId: string | null; isStrike?: boolean }
+  | { type: 'RESET_FACE_OFF' }
+  | { type: 'SKIP_FACE_OFF'; controllingTeam?: 'teamA' | 'teamB' | null }
+  | { type: 'PLAY_ROUND_START' }
   | { type: 'UPDATE_FAST_MONEY'; fastMoney: FastMoneyState }
-  | { type: 'UPDATE_QUESTIONS'; questions: Question[]; fastMoneyQuestions?: FastMoneyQuestion[] };
+  | { type: 'UPDATE_QUESTIONS'; questions: Question[]; fastMoneyQuestions?: FastMoneyQuestion[] }
+  | { type: 'REQUEST_SYNC' };
+

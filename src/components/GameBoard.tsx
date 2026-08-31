@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import type { GameState, ViewMode } from '../types/game';
-import { X, Shield, Mic, CheckCircle2, XCircle, AlertTriangle, ChevronLeft, ChevronRight } from 'lucide-react';
+import { X, Shield, Mic, CheckCircle2, XCircle, AlertTriangle, ChevronLeft, ChevronRight, Bell, Trophy, RotateCcw, QrCode } from 'lucide-react';
 import { useSpeechRecognition } from '../hooks/useSpeechRecognition';
 import { matchAnswer } from '../utils/answerMatcher';
 import { ChungSucLogo } from './ChungSucLogo';
@@ -14,6 +14,11 @@ interface GameBoardProps {
   onSetRound?: (index: number) => void;
   onViewChange?: (view: ViewMode) => void;
   isHostControlled?: boolean;
+  onTriggerFaceOffBuzzer?: (team: 'teamA' | 'teamB') => void;
+  onProcessFaceOffAnswer?: (answerId: string | null, isStrike?: boolean) => void;
+  onResetFaceOff?: () => void;
+  onSkipFaceOff?: (controllingTeam?: 'teamA' | 'teamB' | null) => void;
+  onOpenBuzzerQr?: () => void;
 }
 
 export const GameBoard: React.FC<GameBoardProps> = ({
@@ -24,10 +29,14 @@ export const GameBoard: React.FC<GameBoardProps> = ({
   onAwardBank,
   onSetRound,
   onViewChange,
+  onTriggerFaceOffBuzzer,
+  onProcessFaceOffAnswer,
+  onResetFaceOff,
+  onSkipFaceOff,
+  onOpenBuzzerQr,
 }) => {
   const [voiceToast, setVoiceToast] = useState<{
     type: 'success' | 'error' | 'warning';
-
     title: string;
     detail: string;
   } | null>(null);
@@ -35,6 +44,9 @@ export const GameBoard: React.FC<GameBoardProps> = ({
 
   const currentQuestion = state.questions[state.currentRoundIndex];
   const multiplier = currentQuestion?.multiplier || 1;
+  const isFaceOffActive = state.faceOff && state.faceOff.status !== 'completed' && state.currentRoundIndex < state.questions.length;
+  const buzzedTeam = state.faceOff?.buzzedTeam;
+  const opponentTeam = buzzedTeam === 'teamA' ? 'teamB' : 'teamA';
 
   const showToast = useCallback((toast: { type: 'success' | 'error' | 'warning'; title: string; detail: string }) => {
     if (toastTimerRef.current) {
@@ -63,26 +75,51 @@ export const GameBoard: React.FC<GameBoardProps> = ({
     onResult: (text, isFinal) => {
       if (isFinal && text && currentQuestion) {
         const result = matchAnswer(text, currentQuestion.answers, state.revealedAnswers);
-        if (result.status === 'MATCH_NEW' && result.matchedAnswer) {
-          onRevealAnswer(result.matchedAnswer.id);
-          showToast({
-            type: 'success',
-            title: `CHÍNH XÁC: "${result.matchedAnswer.text}"`,
-            detail: `+${result.matchedAnswer.points * multiplier} điểm`,
-          });
-        } else if (result.status === 'NO_MATCH') {
-          onAddStrike(1);
-          showToast({
-            type: 'error',
-            title: `SAI: "${text}"`,
-            detail: `Không có trong bảng (+1 Dấu X)`,
-          });
-        } else if (result.status === 'MATCH_ALREADY_REVEALED' && result.matchedAnswer) {
-          showToast({
-            type: 'warning',
-            title: `ĐÃ LẬT RỒI: "${result.matchedAnswer.text}"`,
-            detail: `Vui lòng nêu đáp án khác`,
-          });
+
+        if (isFaceOffActive && onProcessFaceOffAnswer) {
+          if (result.status === 'MATCH_NEW' && result.matchedAnswer) {
+            onProcessFaceOffAnswer(result.matchedAnswer.id);
+            showToast({
+              type: 'success',
+              title: `TRANH CHUÔNG: "${result.matchedAnswer.text}"`,
+              detail: `+${result.matchedAnswer.points * multiplier} điểm`,
+            });
+          } else if (result.status === 'NO_MATCH') {
+            onProcessFaceOffAnswer(null, true);
+            showToast({
+              type: 'error',
+              title: `TRANH CHUÔNG: "${text}" (SAI)`,
+              detail: `Không có trong bảng`,
+            });
+          } else if (result.status === 'MATCH_ALREADY_REVEALED' && result.matchedAnswer) {
+            showToast({
+              type: 'warning',
+              title: `ĐÃ LẬT RỒI: "${result.matchedAnswer.text}"`,
+              detail: `Vui lòng nêu đáp án khác`,
+            });
+          }
+        } else {
+          if (result.status === 'MATCH_NEW' && result.matchedAnswer) {
+            onRevealAnswer(result.matchedAnswer.id);
+            showToast({
+              type: 'success',
+              title: `CHÍNH XÁC: "${result.matchedAnswer.text}"`,
+              detail: `+${result.matchedAnswer.points * multiplier} điểm`,
+            });
+          } else if (result.status === 'NO_MATCH') {
+            onAddStrike(1);
+            showToast({
+              type: 'error',
+              title: `SAI: "${text}"`,
+              detail: `Không có trong bảng (+1 Dấu X)`,
+            });
+          } else if (result.status === 'MATCH_ALREADY_REVEALED' && result.matchedAnswer) {
+            showToast({
+              type: 'warning',
+              title: `ĐÃ LẬT RỒI: "${result.matchedAnswer.text}"`,
+              detail: `Vui lòng nêu đáp án khác`,
+            });
+          }
         }
         stopListening();
       }
@@ -116,7 +153,38 @@ export const GameBoard: React.FC<GameBoardProps> = ({
       }
 
       const key = e.key.toLowerCase();
-      // Numbers 1-8 to toggle answers
+
+      // Face-Off buzzer shortcuts
+      if (isFaceOffActive) {
+        if (state.faceOff.status === 'buzzer_waiting') {
+          if (key === 'a' || key === 'z') {
+            onTriggerFaceOffBuzzer?.('teamA');
+            return;
+          }
+          if (key === 'l' || key === 'm' || key === 'enter') {
+            onTriggerFaceOffBuzzer?.('teamB');
+            return;
+          }
+        }
+
+        // 'x' key for strike in Face-Off
+        if (key === 'x') {
+          onProcessFaceOffAnswer?.(null, true);
+          return;
+        }
+
+        // Numbers 1-8 to answer during Face-Off
+        if (['1', '2', '3', '4', '5', '6', '7', '8'].includes(key)) {
+          const index = parseInt(key, 10) - 1;
+          if (currentQuestion && currentQuestion.answers[index]) {
+            const ans = currentQuestion.answers[index];
+            onProcessFaceOffAnswer?.(ans.id);
+            return;
+          }
+        }
+      }
+
+      // Numbers 1-8 to toggle answers in normal play
       if (['1', '2', '3', '4', '5', '6', '7', '8'].includes(key)) {
         const index = parseInt(key, 10) - 1;
         if (currentQuestion && currentQuestion.answers[index]) {
@@ -151,7 +219,23 @@ export const GameBoard: React.FC<GameBoardProps> = ({
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [currentQuestion, state.revealedAnswers, state.currentRoundIndex, state.questions.length, onRevealAnswer, onHideAnswer, onAddStrike, onSetRound, onViewChange, handleToggleVoice]);
+  }, [
+    currentQuestion,
+    state.revealedAnswers,
+    state.currentRoundIndex,
+    state.questions.length,
+    isFaceOffActive,
+    state.faceOff,
+    onRevealAnswer,
+    onHideAnswer,
+    onAddStrike,
+    onSetRound,
+    onViewChange,
+    handleToggleVoice,
+    onTriggerFaceOffBuzzer,
+    onProcessFaceOffAnswer
+  ]);
+
 
 
   if (!currentQuestion) {
@@ -424,6 +508,245 @@ export const GameBoard: React.FC<GameBoardProps> = ({
         </div>
       </div>
 
+      {/* Face-Off (Tranh Chuông Giành Quyền) Active Banner / Controller */}
+      {isFaceOffActive && (
+        <div className="relative z-20 max-w-7xl mx-auto w-full mb-1 shrink-0 animate-in fade-in slide-in-from-top duration-300">
+          
+          {/* Phase 1: Waiting for Buzzers */}
+          {state.faceOff.status === 'buzzer_waiting' && (
+            <div className="bg-gradient-to-r from-red-950/90 via-slate-900/95 to-blue-950/90 border-2 border-amber-500/80 rounded-2xl p-2.5 sm:p-3 shadow-2xl backdrop-blur">
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-2.5">
+                
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-xl bg-amber-500/20 border border-amber-500/50 flex items-center justify-center text-amber-300 shrink-0">
+                    <Bell className="w-4 h-4 animate-bounce" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-1.5">
+                      <span className="font-black text-xs sm:text-sm md:text-base text-amber-300 uppercase tracking-wider">
+                        Tranh Chuông Giành Quyền
+                      </span>
+                      <span className="px-1.5 py-0.2 rounded-full bg-amber-500 text-slate-950 text-[9px] font-black uppercase animate-pulse">
+                        Buzzer
+                      </span>
+                    </div>
+                    <p className="text-[11px] sm:text-xs text-slate-300">
+                      Đại diện 2 đội bấm chuông để trả lời trước! <span className="text-amber-300 font-semibold">(Đoán trúng #1 thắng ngay)</span>
+                    </p>
+                  </div>
+                </div>
+
+                {/* Big Interactive Team Buzzers */}
+                <div className="flex items-center gap-2 w-full sm:w-auto justify-center">
+                  <button
+                    onClick={() => onTriggerFaceOffBuzzer?.('teamA')}
+                    className="flex-1 sm:flex-none px-4 py-2 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-500 hover:to-red-600 text-white font-black text-xs sm:text-sm rounded-xl border border-red-300 shadow-lg shadow-red-600/40 active:scale-95 transition flex items-center justify-center gap-1.5"
+                  >
+                    <Bell className="w-4 h-4" />
+                    <span>{state.teams.teamA.name} [A]</span>
+                  </button>
+
+                  <button
+                    onClick={() => onTriggerFaceOffBuzzer?.('teamB')}
+                    className="flex-1 sm:flex-none px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-500 hover:to-blue-600 text-white font-black text-xs sm:text-sm rounded-xl border border-blue-300 shadow-lg shadow-blue-600/40 active:scale-95 transition flex items-center justify-center gap-1.5"
+                  >
+                    <Bell className="w-4 h-4" />
+                    <span>{state.teams.teamB.name} [L]</span>
+                  </button>
+
+                  {onOpenBuzzerQr && (
+                    <button
+                      onClick={onOpenBuzzerQr}
+                      className="px-3 py-2 bg-emerald-950/70 hover:bg-emerald-900/80 text-emerald-300 hover:text-emerald-200 text-xs font-bold rounded-xl border border-emerald-500/50 shrink-0 transition flex items-center gap-1 shadow-md shadow-emerald-950/40"
+                      title="Mã QR Chuông Bấm cho Điện Thoại"
+                    >
+                      <QrCode className="w-4 h-4" />
+                      <span className="hidden md:inline">Mã QR Điện Thoại</span>
+                    </button>
+                  )}
+
+                  {onSkipFaceOff && (
+                    <button
+                      onClick={() => onSkipFaceOff()}
+                      className="px-2.5 py-2 bg-slate-800/80 hover:bg-slate-700 text-slate-400 hover:text-slate-200 text-[11px] font-bold rounded-xl border border-slate-700 shrink-0 transition"
+                      title="Bỏ qua phần tranh chuông"
+                    >
+                      Bỏ qua
+                    </button>
+                  )}
+                </div>
+
+              </div>
+            </div>
+          )}
+
+          {/* Phase 2: Buzzed Team Answering (First Answer) */}
+          {state.faceOff.status === 'first_answer' && buzzedTeam && (
+            <div className={`p-2.5 sm:p-3 rounded-2xl border-2 shadow-2xl backdrop-blur transition-all ${
+              buzzedTeam === 'teamA'
+                ? 'bg-red-950/90 border-red-500 ring-2 ring-red-400/40'
+                : 'bg-blue-950/90 border-blue-500 ring-2 ring-blue-400/40'
+            }`}>
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-2.5">
+                
+                <div className="flex items-center gap-2.5">
+                  <div className={`w-8 h-8 rounded-xl flex items-center justify-center text-white font-black text-xs shrink-0 ${
+                    buzzedTeam === 'teamA' ? 'bg-red-600' : 'bg-blue-600'
+                  }`}>
+                    <Bell className="w-4 h-4 animate-ping" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-1.5">
+                      <h3 className="font-black text-xs sm:text-sm md:text-base text-white tracking-wide">
+                        {state.teams[buzzedTeam].name} ĐÃ BẤM CHUÔNG TRƯỚC!
+                      </h3>
+                      <span className="px-1.5 py-0.2 rounded-full bg-amber-400 text-slate-950 text-[9px] font-black uppercase">
+                        Đang trả lời
+                      </span>
+                    </div>
+                    <p className="text-[11px] sm:text-xs text-amber-200">
+                      Đoán trúng <strong>đáp án số 1 cao nhất</strong> để thắng ngay! Nếu đoán đáp án thấp hơn, {state.teams[opponentTeam].name} sẽ có cơ hội cướp quyền.
+                    </p>
+                  </div>
+                </div>
+
+                {/* Action Controls for Face-Off First Answer */}
+                <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+                  <button
+                    onClick={handleToggleVoice}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-black flex items-center gap-1 shadow-md transition active:scale-95 ${
+                      isListening
+                        ? 'bg-red-600 text-white border border-red-400 animate-pulse'
+                        : 'bg-indigo-600 hover:bg-indigo-500 text-white border border-indigo-400/50'
+                    }`}
+                  >
+                    <Mic className="w-3.5 h-3.5" />
+                    <span>{isListening ? 'Đang nghe...' : 'Nói vào Micro (Space)'}</span>
+                  </button>
+
+                  <button
+                    onClick={() => onProcessFaceOffAnswer?.(null, true)}
+                    className="px-3 py-1.5 bg-red-800/90 hover:bg-red-700 text-white rounded-xl text-xs font-bold border border-red-500/50 flex items-center gap-1 shadow transition active:scale-95"
+                    title="Đoán sai (+1X)"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                    <span>Đoán Sai / Hết Giờ</span>
+                  </button>
+
+                  {onResetFaceOff && (
+                    <button
+                      onClick={onResetFaceOff}
+                      className="p-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl border border-slate-700"
+                      title="Bấm chuông lại"
+                    >
+                      <RotateCcw className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </div>
+
+              </div>
+            </div>
+          )}
+
+          {/* Phase 3: Opponent Steal Opportunity (Second Answer) */}
+          {state.faceOff.status === 'second_answer' && (
+            <div className={`p-2.5 sm:p-3 rounded-2xl border-2 shadow-2xl backdrop-blur transition-all ${
+              opponentTeam === 'teamA'
+                ? 'bg-red-950/90 border-red-500 ring-2 ring-red-400/40'
+                : 'bg-blue-950/90 border-blue-500 ring-2 ring-blue-400/40'
+            }`}>
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-2.5">
+                
+                <div className="flex items-center gap-2.5">
+                  <div className={`w-8 h-8 rounded-xl flex items-center justify-center text-white font-black text-xs shrink-0 ${
+                    opponentTeam === 'teamA' ? 'bg-red-600' : 'bg-blue-600'
+                  }`}>
+                    <Trophy className="w-4 h-4 animate-bounce" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-1.5">
+                      <h3 className="font-black text-xs sm:text-sm md:text-base text-white tracking-wide">
+                        CƠ HỘI CƯỚP QUYỀN CỦA {state.teams[opponentTeam].name}!
+                      </h3>
+                      <span className="px-1.5 py-0.2 rounded-full bg-yellow-400 text-slate-950 text-[9px] font-black uppercase">
+                        Cướp quyền
+                      </span>
+                    </div>
+                    <p className="text-[11px] sm:text-xs text-amber-200">
+                      {state.faceOff.firstAnswer?.rank
+                        ? `${state.teams[buzzedTeam!].name} đã mở đáp án #${state.faceOff.firstAnswer.rank} (${state.faceOff.firstAnswer.text}). Cần đoán đáp án cao hơn (từ #1 đến #${state.faceOff.firstAnswer.rank - 1}) để cướp quyền!`
+                        : `${state.teams[buzzedTeam!].name} đoán sai! Chỉ cần đoán trúng 1 đáp án bất kỳ trên bảng để giành quyền chơi!`}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Action Controls for Face-Off Second Answer */}
+                <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+                  <button
+                    onClick={handleToggleVoice}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-black flex items-center gap-1 shadow-md transition active:scale-95 ${
+                      isListening
+                        ? 'bg-red-600 text-white border border-red-400 animate-pulse'
+                        : 'bg-indigo-600 hover:bg-indigo-500 text-white border border-indigo-400/50'
+                    }`}
+                  >
+                    <Mic className="w-3.5 h-3.5" />
+                    <span>{isListening ? 'Đang nghe...' : 'Nói vào Micro (Space)'}</span>
+                  </button>
+
+                  <button
+                    onClick={() => onProcessFaceOffAnswer?.(null, true)}
+                    className="px-3 py-1.5 bg-red-800/90 hover:bg-red-700 text-white rounded-xl text-xs font-bold border border-red-500/50 flex items-center gap-1 shadow transition active:scale-95"
+                    title="Đoán sai"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                    <span>Đoán Sai / Hết Giờ</span>
+                  </button>
+
+                  {onResetFaceOff && (
+                    <button
+                      onClick={onResetFaceOff}
+                      className="p-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl border border-slate-700"
+                      title="Bấm chuông lại"
+                    >
+                      <RotateCcw className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </div>
+
+              </div>
+            </div>
+          )}
+
+        </div>
+      )}
+
+      {/* Face-Off Winning Banner Toast / Notification */}
+      {state.faceOff?.status === 'completed' && state.faceOff?.winnerReason && !state.strikes && state.revealedAnswers.length <= 2 && (
+        <div className="relative z-20 max-w-7xl mx-auto w-full mb-1 shrink-0 animate-in fade-in duration-300">
+          <div className={`p-2.5 sm:p-3 rounded-2xl border-2 shadow-2xl backdrop-blur flex items-center justify-between gap-3 ${
+            state.faceOff.winnerTeam === 'teamA'
+              ? 'bg-red-950/80 border-red-500/80 text-red-200'
+              : 'bg-blue-950/80 border-blue-500/80 text-blue-200'
+          }`}>
+            <div className="flex items-center gap-2.5">
+              <Trophy className="w-5 h-5 text-yellow-400 animate-bounce shrink-0" />
+              <div>
+                <span className="font-extrabold text-xs sm:text-sm text-white">
+                  {state.faceOff.winnerReason}
+                </span>
+                <p className="text-[11px] opacity-80">
+                  {state.teams[state.faceOff.winnerTeam || 'teamA'].name} bắt đầu đoán các đáp án còn lại của vòng đấu.
+                </p>
+              </div>
+            </div>
+            <span className="text-[10px] uppercase font-bold bg-amber-500 text-slate-950 px-2 py-0.5 rounded-full shrink-0">
+              Giữ Quyền
+            </span>
+          </div>
+        </div>
+      )}
+
       {/* 8-Tile Answer Board (Responsive 2-Column x 4-Row Grid, dynamically fills remaining screen height) */}
       <div className="relative z-10 max-w-7xl mx-auto w-full my-auto py-1 flex-1 flex flex-col justify-center min-h-0">
         <div className="grid grid-cols-2 grid-rows-4 gap-1.5 sm:gap-2 md:gap-2.5 lg:gap-3 w-full h-full min-h-0">
@@ -446,10 +769,14 @@ export const GameBoard: React.FC<GameBoardProps> = ({
               <div
                 key={answer.id}
                 onClick={() => {
-                  if (isRevealed) {
-                    onHideAnswer(answer.id);
+                  if (isFaceOffActive && onProcessFaceOffAnswer) {
+                    onProcessFaceOffAnswer(answer.id);
                   } else {
-                    onRevealAnswer(answer.id);
+                    if (isRevealed) {
+                      onHideAnswer(answer.id);
+                    } else {
+                      onRevealAnswer(answer.id);
+                    }
                   }
                 }}
                 className="perspective-1000 w-full h-full min-h-[38px] sm:min-h-[46px] md:min-h-[52px] cursor-pointer select-none group relative block"

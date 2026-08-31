@@ -19,7 +19,11 @@ import {
   Trophy,
   Sparkles,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  Bell,
+  RotateCcw,
+  Music,
+  QrCode
 } from 'lucide-react';
 import { soundManager } from '../utils/audio';
 import { VoiceAnswerWidget } from './VoiceAnswerWidget';
@@ -39,6 +43,12 @@ interface HostControlPanelProps {
   onUpdateTeamScore: (team: 'teamA' | 'teamB', score: number) => void;
   onSetControllingTeam: (team: 'teamA' | 'teamB' | null) => void;
   onViewChange?: (view: ViewMode) => void;
+  onTriggerFaceOffBuzzer?: (team: 'teamA' | 'teamB') => void;
+  onProcessFaceOffAnswer?: (answerId: string | null, isStrike?: boolean) => void;
+  onResetFaceOff?: () => void;
+  onSkipFaceOff?: (controllingTeam?: 'teamA' | 'teamB' | null) => void;
+  onPlayRoundStart?: () => void;
+  onOpenBuzzerQr?: () => void;
 }
 
 export const HostControlPanel: React.FC<HostControlPanelProps> = ({
@@ -55,6 +65,12 @@ export const HostControlPanel: React.FC<HostControlPanelProps> = ({
   onUpdateTeamScore,
   onSetControllingTeam,
   onViewChange,
+  onTriggerFaceOffBuzzer,
+  onProcessFaceOffAnswer,
+  onResetFaceOff,
+  onSkipFaceOff,
+  onPlayRoundStart,
+  onOpenBuzzerQr,
 }) => {
   const [editingTeam, setEditingTeam] = useState<'teamA' | 'teamB' | null>(null);
   const [teamANameInput, setTeamANameInput] = useState(state.teams.teamA.name);
@@ -64,6 +80,9 @@ export const HostControlPanel: React.FC<HostControlPanelProps> = ({
 
   const currentQuestion = state.questions[state.currentRoundIndex];
   const multiplier = currentQuestion?.multiplier || 1;
+  const isFaceOffActive = state.faceOff && state.faceOff.status !== 'completed' && state.currentRoundIndex < state.questions.length;
+  const buzzedTeam = state.faceOff?.buzzedTeam;
+  const opponentTeam = buzzedTeam === 'teamA' ? 'teamB' : 'teamA';
 
   const saveTeamName = (team: 'teamA' | 'teamB') => {
     if (team === 'teamA') {
@@ -106,6 +125,17 @@ export const HostControlPanel: React.FC<HostControlPanelProps> = ({
 
         {/* Action button & Quick round changer */}
         <div className="flex flex-wrap items-center gap-2 w-full md:w-auto justify-end">
+          {onOpenBuzzerQr && (
+            <button
+              onClick={onOpenBuzzerQr}
+              title="Mở mã QR Chuông Bấm cho 2 đội"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40 text-xs font-semibold transition active:scale-95 shadow-sm"
+            >
+              <QrCode className="w-3.5 h-3.5" />
+              <span>Mã QR Chuông 2 Đội</span>
+            </button>
+          )}
+
           <button
             onClick={handleCopyHostLink}
             title="Sao chép đường dẫn bí mật của tab MC"
@@ -371,8 +401,16 @@ export const HostControlPanel: React.FC<HostControlPanelProps> = ({
         </div>
 
         {/* Manual Sound Effects Buttons */}
-        <div className="flex items-center justify-end gap-1.5 pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-800">
+        <div className="flex items-center justify-end gap-1.5 pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-800 flex-wrap">
           <span className="text-[10px] font-bold uppercase text-slate-500 mr-1">Âm:</span>
+          <button
+            onClick={() => onPlayRoundStart ? onPlayRoundStart() : soundManager.playRoundStart()}
+            className="px-2.5 py-1.5 bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 text-xs font-bold rounded-lg border border-amber-500/40 flex items-center gap-1"
+            title="Phát nhạc mở đầu vòng đấu"
+          >
+            <Music className="w-3.5 h-3.5" />
+            Nhạc Mở Vòng
+          </button>
           <button
             onClick={() => soundManager.playDing()}
             className="px-2 py-1.5 bg-slate-800 hover:bg-slate-700 text-amber-300 text-xs font-medium rounded-lg border border-slate-700"
@@ -394,6 +432,121 @@ export const HostControlPanel: React.FC<HostControlPanelProps> = ({
         </div>
 
       </div>
+
+      {/* MC Face-Off (Tranh Chuông Giành Quyền) Manager Card */}
+      {state.currentRoundIndex < state.questions.length && (
+        <div className={`rounded-2xl border-2 p-3.5 sm:p-4 shadow-xl transition-all ${
+          isFaceOffActive
+            ? 'bg-gradient-to-r from-amber-950/40 via-slate-900/90 to-amber-950/40 border-amber-500/80 shadow-amber-500/10'
+            : 'bg-slate-900/60 border-slate-800'
+        }`}>
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 pb-2.5 border-b border-slate-800">
+            <div className="flex items-center gap-2.5">
+              <div className={`w-8 h-8 rounded-xl flex items-center justify-center font-bold text-xs ${
+                isFaceOffActive ? 'bg-amber-500 text-slate-950 animate-pulse' : 'bg-slate-800 text-slate-400'
+              }`}>
+                <Bell className="w-4 h-4" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h3 className="font-extrabold text-sm sm:text-base text-white">
+                    Tranh Chuông Đầu Vòng (Face-Off) - Vòng {state.currentRoundIndex + 1}
+                  </h3>
+                  <span className={`text-[10px] px-2 py-0.5 rounded-full font-black uppercase ${
+                    isFaceOffActive
+                      ? 'bg-amber-500 text-slate-950 shadow-sm'
+                      : 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+                  }`}>
+                    {state.faceOff?.status === 'buzzer_waiting' && 'Đang chờ chuông'}
+                    {state.faceOff?.status === 'first_answer' && `${state.teams[buzzedTeam!].name} đang trả lời`}
+                    {state.faceOff?.status === 'second_answer' && `${state.teams[opponentTeam!].name} cướp quyền`}
+                    {state.faceOff?.status === 'completed' && 'Đã có quyền chơi'}
+                  </span>
+                </div>
+                <p className="text-[11px] sm:text-xs text-slate-400 mt-0.5">
+                  {state.faceOff?.status === 'buzzer_waiting' && 'Đại diện 2 đội lên bấm chuông. Ai bấm trước trả lời trước.'}
+                  {state.faceOff?.status === 'first_answer' && `${state.teams[buzzedTeam!].name} đang trả lời. Đoán trúng #1 thắng ngay! Nếu đoán đáp án thấp hơn, ${state.teams[opponentTeam!].name} được cơ hội cướp quyền.`}
+                  {state.faceOff?.status === 'second_answer' && (
+                    state.faceOff.firstAnswer?.rank
+                      ? `${state.teams[buzzedTeam!].name} đã mở đáp án #${state.faceOff.firstAnswer.rank}. ${state.teams[opponentTeam!].name} cần đoán đáp án cao hơn (từ #1 đến #${state.faceOff.firstAnswer.rank - 1}) để cướp quyền!`
+                      : `${state.teams[buzzedTeam!].name} đoán sai! ${state.teams[opponentTeam!].name} chỉ cần đoán trúng 1 đáp án bất kỳ để giành quyền chơi!`
+                  )}
+                  {state.faceOff?.status === 'completed' && (state.faceOff.winnerReason || `Đội ${state.teams[state.controllingTeam || 'teamA'].name} đang giữ quyền chơi cả vòng.`)}
+                </p>
+              </div>
+            </div>
+
+            {/* Quick Face-Off MC Triggers */}
+            <div className="flex flex-wrap items-center gap-1.5 self-end md:self-auto">
+              <button
+                onClick={() => onTriggerFaceOffBuzzer?.('teamA')}
+                className="px-3 py-1.5 bg-red-600/90 hover:bg-red-500 text-white rounded-xl text-xs font-black shadow-md shadow-red-600/20 active:scale-95 transition flex items-center gap-1"
+              >
+                <Bell className="w-3.5 h-3.5" />
+                {state.teams.teamA.name} Bấm
+              </button>
+
+              <button
+                onClick={() => onTriggerFaceOffBuzzer?.('teamB')}
+                className="px-3 py-1.5 bg-blue-600/90 hover:bg-blue-500 text-white rounded-xl text-xs font-black shadow-md shadow-blue-600/20 active:scale-95 transition flex items-center gap-1"
+              >
+                <Bell className="w-3.5 h-3.5" />
+                {state.teams.teamB.name} Bấm
+              </button>
+
+              {isFaceOffActive && (
+                <button
+                  onClick={() => onProcessFaceOffAnswer?.(null, true)}
+                  className="px-2.5 py-1.5 bg-red-950 text-red-300 border border-red-800 hover:bg-red-900 rounded-xl text-xs font-bold transition"
+                  title="Đoán sai (+1X)"
+                >
+                  <X className="w-3.5 h-3.5 inline mr-0.5" />
+                  Đoán Sai
+                </button>
+              )}
+
+              {onResetFaceOff && (
+                <button
+                  onClick={onResetFaceOff}
+                  className="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-xs font-semibold border border-slate-700 transition flex items-center gap-1"
+                  title="Đặt lại chuông bấm đầu vòng"
+                >
+                  <RotateCcw className="w-3.5 h-3.5" />
+                  Bấm Lại
+                </button>
+              )}
+
+              {isFaceOffActive && onSkipFaceOff && (
+                <button
+                  onClick={() => onSkipFaceOff()}
+                  className="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-slate-200 rounded-xl text-xs font-semibold border border-slate-700 transition"
+                  title="Bỏ qua phần tranh chuông"
+                >
+                  Bỏ qua
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Winner status summary if completed */}
+          {state.faceOff?.status === 'completed' && (
+            <div className="mt-2 pt-2 flex items-center justify-between text-xs text-slate-300">
+              <div className="flex items-center gap-2">
+                <Trophy className="w-4 h-4 text-yellow-400" />
+                <span className="font-bold text-white">{state.faceOff.winnerReason || 'Đã xác định đội giữ quyền'}</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="text-slate-400">Đội giữ quyền:</span>
+                <span className={`px-2 py-0.5 rounded font-black text-xs ${
+                  state.controllingTeam === 'teamA' ? 'bg-red-500 text-white' : state.controllingTeam === 'teamB' ? 'bg-blue-500 text-white' : 'bg-slate-800 text-slate-300'
+                }`}>
+                  {state.controllingTeam ? state.teams[state.controllingTeam].name : 'Chưa chọn'}
+                </span>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Active Question & Full Answer Controller */}
       {currentQuestion ? (
@@ -440,8 +593,20 @@ export const HostControlPanel: React.FC<HostControlPanelProps> = ({
             answers={currentQuestion.answers}
             revealedAnswerIds={state.revealedAnswers}
             multiplier={multiplier}
-            onRevealAnswer={onRevealAnswer}
-            onAddStrike={onAddStrike}
+            onRevealAnswer={(id) => {
+              if (isFaceOffActive && onProcessFaceOffAnswer) {
+                onProcessFaceOffAnswer(id);
+              } else {
+                onRevealAnswer(id);
+              }
+            }}
+            onAddStrike={(count) => {
+              if (isFaceOffActive && onProcessFaceOffAnswer) {
+                onProcessFaceOffAnswer(null, true);
+              } else {
+                onAddStrike(count);
+              }
+            }}
           />
 
           {/* List of answers with single-click reveal/hide buttons */}
@@ -479,15 +644,21 @@ export const HostControlPanel: React.FC<HostControlPanelProps> = ({
 
                   <button
                     onClick={() => {
-                      if (isRevealed) {
-                        onHideAnswer(answer.id);
+                      if (isFaceOffActive && onProcessFaceOffAnswer) {
+                        onProcessFaceOffAnswer(answer.id);
                       } else {
-                        onRevealAnswer(answer.id);
+                        if (isRevealed) {
+                          onHideAnswer(answer.id);
+                        } else {
+                          onRevealAnswer(answer.id);
+                        }
                       }
                     }}
                     className={`px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1 transition shrink-0 active:scale-95 ${
                       isRevealed
                         ? 'bg-amber-500 text-slate-950 hover:bg-amber-400'
+                        : isFaceOffActive
+                        ? 'bg-gradient-to-r from-amber-500 to-yellow-400 text-slate-950 hover:brightness-110 shadow-sm'
                         : 'bg-slate-800 text-slate-300 hover:bg-slate-700 border border-slate-700'
                     }`}
                   >
@@ -495,6 +666,11 @@ export const HostControlPanel: React.FC<HostControlPanelProps> = ({
                       <>
                         <EyeOff className="w-3.5 h-3.5" />
                         Đang Hiện
+                      </>
+                    ) : isFaceOffActive ? (
+                      <>
+                        <Eye className="w-3.5 h-3.5" />
+                        Chọn Cho Tranh Chuông
                       </>
                     ) : (
                       <>

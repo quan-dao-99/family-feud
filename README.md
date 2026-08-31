@@ -40,8 +40,11 @@
 - Tự động phát hiện và cảnh báo nếu Người 2 trả lời trùng đáp án với Người 1.
 - Hiệu ứng pháo hoa ăn mừng khi tổng điểm đạt mốc **200 điểm**.
 
-### 4. Bấm chuông giành quyền (Face-off Buzzer)
-- 2 đội có thể bấm chuông trên màn hình hoặc dùng phím tắt để xem ai bấm nhanh hơn đến từng mili-giây.
+### 4. Bấm chuông giành quyền (Face-off Buzzer) & 2 Trang Chuông Riêng Biệt Cho 2 Đội
+- **Trang chuông riêng cho Đội Đỏ (Team A)**: Truy cập `http://<IP-LAN>:5173/team-a` để biến điện thoại của Đội Đỏ thành remote bấm chuông khổng lồ với phản hồi rung xúc giác (haptic) và âm thanh.
+- **Trang chuông riêng cho Đội Xanh (Team B)**: Truy cập `http://<IP-LAN>:5173/team-b` dành riêng cho Đội Xanh.
+- **Quét Mã QR tức thì**: Bấm nút **"Mã QR Chuông"** trên Màn hình Game TV hoặc Bảng MC để hiển thị mã QR cho 2 đội quét bằng camera điện thoại.
+- **Đồng bộ thời gian thực siêu tốc (< 5ms)**: Tín hiệu bấm chuông truyền qua WebSocket LAN và BroadcastChannel về Màn hình Game chính ngay lập tức để xác định đội bấm nhanh hơn đến từng mili-giây.
 
 ---
 

@@ -57,7 +57,12 @@ export const RulesModal: React.FC<RulesModalProps> = ({ isOpen, onClose }) => {
               <SlidersHorizontal className="w-4 h-4 shrink-0" /> 2. Luật Chơi Vòng Bảng (Rounds 1 - 4)
             </h3>
             <ul className="list-disc list-inside space-y-1 text-[11px] sm:text-xs text-slate-300 ml-1">
-              <li><strong>Tranh quyền mở đầu</strong>: Đại diện 2 đội bấm chuông tranh quyền. Đội bấm trước trả lời trước. Đoán đúng đáp án #1 được chọn Chơi hoặc Nhường.</li>
+              <li><strong>Tranh quyền mở đầu (Face-Off Buzzer)</strong>: Mỗi vòng bảng luôn bắt đầu bằng phần bấm chuông giữa 2 đội. Đội bấm trước trả lời trước:
+                <ul className="list-circle list-inside ml-4 mt-0.5 space-y-0.5 text-amber-200/90">
+                  <li>Nếu đoán đúng <strong>đáp án số 1 cao nhất</strong> &rarr; Thắng ngay phần tranh chuông và giữ quyền chơi cả vòng!</li>
+                  <li>Nếu đoán đáp án thấp hơn (hoặc sai) &rarr; Đội bạn có cơ hội trả lời. Đội nào có đáp án cao hơn (thứ hạng điểm cao hơn) sẽ giành quyền đoán các câu còn lại!</li>
+                </ul>
+              </li>
               <li><strong>Đoán đáp án</strong>: Đội giữ quyền lần lượt nêu đáp án để tích lũy điểm vào <strong>Điểm Tích Lũy Vòng</strong>.</li>
               <li><strong>Dấu X (Sai)</strong>: Đoán sai nhận 1 dấu X. Đủ <strong>3X</strong> chuyển quyền cướp điểm sang đội bạn.</li>
               <li><strong>Cướp điểm (Steal)</strong>: Đội bạn đoán đúng 1 đáp án còn lại sẽ cướp toàn bộ điểm của vòng!</li>

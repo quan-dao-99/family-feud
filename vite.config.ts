@@ -45,6 +45,9 @@ function gameSyncPlugin(): Plugin {
 
           if (action.type === 'SYNC_STATE' && action.state) {
             savedGameState = action.state
+          } else if (action.type === 'REQUEST_SYNC' && savedGameState) {
+            ws.send(JSON.stringify({ type: 'SYNC_STATE', state: savedGameState }))
+            return
           }
 
           // Broadcast to all other connected clients (Phone -> TV, TV -> Phone)

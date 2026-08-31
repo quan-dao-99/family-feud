@@ -14,7 +14,8 @@ import {
   ExternalLink, 
   RotateCcw,
   BookOpen,
-  Bell
+  Bell,
+  QrCode
 } from 'lucide-react';
 
 interface HeaderNavProps {
@@ -24,6 +25,7 @@ interface HeaderNavProps {
   onToggleSound: () => void;
   onResetGame: () => void;
   onOpenRules: () => void;
+  onOpenBuzzerQr?: () => void;
   isHostAuthorized?: boolean;
 }
 
@@ -34,6 +36,7 @@ export const HeaderNav: React.FC<HeaderNavProps> = ({
   onToggleSound,
   onResetGame,
   onOpenRules,
+  onOpenBuzzerQr,
   isHostAuthorized = false,
 }) => {
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -144,6 +147,18 @@ export const HeaderNav: React.FC<HeaderNavProps> = ({
             >
               {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
             </button>
+
+            {/* QR Code Chuông Bấm */}
+            {onOpenBuzzerQr && (
+              <button
+                onClick={onOpenBuzzerQr}
+                title="Mã QR Chuông Bấm 2 Đội"
+                className="p-1.5 sm:p-2 rounded-lg bg-emerald-950/40 text-emerald-400 border border-emerald-800/50 hover:bg-emerald-900/60 transition flex items-center gap-1 text-xs font-bold"
+              >
+                <QrCode className="w-4 h-4" />
+                <span className="hidden xl:inline">Mã QR Chuông</span>
+              </button>
+            )}
 
             {/* Rules Guide */}
             <button

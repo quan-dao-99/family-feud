@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import type { GameState, Question, FastMoneyQuestion, FastMoneyState, SyncAction } from '../types/game';
+import type { GameState, Question, FastMoneyQuestion, FastMoneyState, SyncAction, FaceOffState, FaceOffStatus } from '../types/game';
 
 import { DEFAULT_QUESTIONS, DEFAULT_FAST_MONEY_QUESTIONS } from '../data/defaultQuestions';
 import { soundManager } from '../utils/audio';
@@ -9,6 +9,15 @@ const STORAGE_KEY = 'chungsuc_state_v1';
 const QUESTIONS_STORAGE_KEY = 'chungsuc_questions_v1';
 const FM_QUESTIONS_STORAGE_KEY = 'chungsuc_fm_questions_v1';
 const BROADCAST_CHANNEL_NAME = 'chungsuc_sync_channel';
+
+export const createInitialFaceOff = (status: FaceOffStatus = 'buzzer_waiting'): FaceOffState => ({
+  status,
+  buzzedTeam: null,
+  firstAnswer: null,
+  secondAnswer: null,
+  winnerTeam: null,
+  winnerReason: undefined,
+});
 
 export const createInitialFastMoney = (questions: FastMoneyQuestion[]): FastMoneyState => ({
   player1: {
@@ -65,6 +74,9 @@ export function useGameState() {
         const parsed = JSON.parse(saved);
         // Ensure questions are valid
         if (parsed.questions && parsed.questions.length > 0) {
+          if (!parsed.faceOff) {
+            parsed.faceOff = createInitialFaceOff('buzzer_waiting');
+          }
           return parsed;
         }
       }
@@ -86,6 +98,7 @@ export function useGameState() {
       strikeOverlay: { visible: false, count: 0 },
       roundBank: 0,
       controllingTeam: null,
+      faceOff: createInitialFaceOff('buzzer_waiting'),
       fastMoney: createInitialFastMoney(initialData.fmQuestions),
       soundEnabled: true,
       buzzerWinner: null,
@@ -240,6 +253,7 @@ export function useGameState() {
         }));
         break;
       case 'SET_ROUND':
+        soundManager.playRoundStart();
         setState((prev) => {
           const newIndex = action.roundIndex;
           const newQ = prev.questions[newIndex];
@@ -252,8 +266,251 @@ export function useGameState() {
             strikeOverlay: { visible: false, count: 0 },
             roundBank: 0,
             controllingTeam: null,
+            faceOff: createInitialFaceOff('buzzer_waiting'),
+            buzzerWinner: null,
+            buzzerLocked: false,
           };
         });
+        break;
+      case 'TRIGGER_FACE_OFF_BUZZER':
+        soundManager.playBuzzer();
+        setState((prev) => ({
+          ...prev,
+          buzzerWinner: action.team,
+          buzzerLocked: true,
+          faceOff: {
+            ...prev.faceOff,
+            status: 'first_answer',
+            buzzedTeam: action.team,
+            firstAnswer: null,
+            secondAnswer: null,
+            winnerTeam: null,
+            winnerReason: undefined,
+          },
+        }));
+        break;
+      case 'PROCESS_FACE_OFF_ANSWER':
+        setState((prev) => {
+          const currentQ = prev.questions[prev.currentRoundIndex];
+          if (!currentQ || prev.faceOff.status === 'completed' || prev.faceOff.status === 'idle') {
+            return prev;
+          }
+
+          const multiplier = currentQ.multiplier || 1;
+          const buzzedTeam = prev.faceOff.buzzedTeam;
+          if (!buzzedTeam) return prev;
+          const opponentTeam = buzzedTeam === 'teamA' ? 'teamB' : 'teamA';
+
+          // --- PHASE 1: FIRST ANSWER ---
+          if (prev.faceOff.status === 'first_answer') {
+            if (action.isStrike || !action.answerId) {
+              soundManager.playStrike();
+              return {
+                ...prev,
+                strikeOverlay: { visible: true, count: 1 },
+                faceOff: {
+                  ...prev.faceOff,
+                  status: 'second_answer',
+                  firstAnswer: { answerId: null, rank: null, text: 'Không có trong bảng', points: 0 },
+                },
+              };
+            }
+
+            const answerIndex = currentQ.answers.findIndex((a) => a.id === action.answerId);
+            if (answerIndex === -1) {
+              soundManager.playStrike();
+              return {
+                ...prev,
+                strikeOverlay: { visible: true, count: 1 },
+                faceOff: {
+                  ...prev.faceOff,
+                  status: 'second_answer',
+                  firstAnswer: { answerId: null, rank: null, text: 'Không có trong bảng', points: 0 },
+                },
+              };
+            }
+
+            const ans = currentQ.answers[answerIndex];
+            const rank = answerIndex + 1; // 1-based rank (1 is top answer)
+            const pts = ans.points * multiplier;
+            const newRevealed = prev.revealedAnswers.includes(ans.id)
+              ? prev.revealedAnswers
+              : [...prev.revealedAnswers, ans.id];
+            const newBank = prev.roundBank + (prev.revealedAnswers.includes(ans.id) ? 0 : pts);
+
+            // CASE 1.1: TOP ANSWER (#1) -> Immediate Victory for buzzing team!
+            if (rank === 1) {
+              soundManager.playFanfare();
+              try {
+                confetti({ particleCount: 120, spread: 70, origin: { y: 0.6 } });
+              } catch {}
+              return {
+                ...prev,
+                revealedAnswers: newRevealed,
+                roundBank: newBank,
+                controllingTeam: buzzedTeam,
+                faceOff: {
+                  ...prev.faceOff,
+                  status: 'completed',
+                  firstAnswer: { answerId: ans.id, rank: 1, text: ans.text, points: pts },
+                  winnerTeam: buzzedTeam,
+                  winnerReason: `${prev.teams[buzzedTeam].name} đoán trúng đáp án #1 cao nhất! Giành quyền chơi cả vòng!`,
+                },
+              };
+            }
+
+            // CASE 1.2: NOT TOP ANSWER -> Opponent gets a chance to steal control!
+            soundManager.playDing();
+            return {
+              ...prev,
+              revealedAnswers: newRevealed,
+              roundBank: newBank,
+              faceOff: {
+                ...prev.faceOff,
+                status: 'second_answer',
+                firstAnswer: { answerId: ans.id, rank, text: ans.text, points: pts },
+              },
+            };
+          }
+
+          // --- PHASE 2: SECOND ANSWER (Opponent's Turn) ---
+          if (prev.faceOff.status === 'second_answer') {
+            const firstRank = prev.faceOff.firstAnswer?.rank ?? null;
+
+            if (action.isStrike || !action.answerId) {
+              // Opponent answered wrong!
+              if (firstRank !== null) {
+                // First team wins control because they had a valid answer!
+                soundManager.playFanfare();
+                try {
+                  confetti({ particleCount: 100, spread: 60, origin: { y: 0.6 } });
+                } catch {}
+                return {
+                  ...prev,
+                  controllingTeam: buzzedTeam,
+                  faceOff: {
+                    ...prev.faceOff,
+                    status: 'completed',
+                    secondAnswer: { answerId: null, rank: null, text: 'Không có trong bảng', points: 0 },
+                    winnerTeam: buzzedTeam,
+                    winnerReason: `${prev.teams[buzzedTeam].name} giữ đáp án #${firstRank} cao hơn! Giành quyền chơi!`,
+                  },
+                };
+              } else {
+                // Both teams answered wrong
+                soundManager.playStrike();
+                return {
+                  ...prev,
+                  strikeOverlay: { visible: true, count: 1 },
+                  faceOff: {
+                    ...prev.faceOff,
+                    status: 'buzzer_waiting',
+                    buzzedTeam: null,
+                    firstAnswer: null,
+                    secondAnswer: null,
+                    winnerTeam: null,
+                    winnerReason: 'Cả 2 đội đều đoán sai! Mời bấm chuông lại.',
+                  },
+                };
+              }
+            }
+
+            const answerIndex = currentQ.answers.findIndex((a) => a.id === action.answerId);
+            if (answerIndex === -1) {
+              if (firstRank !== null) {
+                soundManager.playFanfare();
+                try {
+                  confetti({ particleCount: 100, spread: 60, origin: { y: 0.6 } });
+                } catch {}
+                return {
+                  ...prev,
+                  controllingTeam: buzzedTeam,
+                  faceOff: {
+                    ...prev.faceOff,
+                    status: 'completed',
+                    secondAnswer: { answerId: null, rank: null, text: 'Không có trong bảng', points: 0 },
+                    winnerTeam: buzzedTeam,
+                    winnerReason: `${prev.teams[buzzedTeam].name} giữ đáp án #${firstRank} cao hơn! Giành quyền chơi!`,
+                  },
+                };
+              } else {
+                soundManager.playStrike();
+                return {
+                  ...prev,
+                  strikeOverlay: { visible: true, count: 1 },
+                  faceOff: {
+                    ...prev.faceOff,
+                    status: 'buzzer_waiting',
+                    buzzedTeam: null,
+                    firstAnswer: null,
+                    secondAnswer: null,
+                    winnerTeam: null,
+                    winnerReason: 'Cả 2 đội đều đoán sai! Mời bấm chuông lại.',
+                  },
+                };
+              }
+            }
+
+            const ans = currentQ.answers[answerIndex];
+            const rank = answerIndex + 1;
+            const pts = ans.points * multiplier;
+            const newRevealed = prev.revealedAnswers.includes(ans.id)
+              ? prev.revealedAnswers
+              : [...prev.revealedAnswers, ans.id];
+            const newBank = prev.roundBank + (prev.revealedAnswers.includes(ans.id) ? 0 : pts);
+
+            // Opponent wins if first team was wrong OR opponent rank is better (smaller number)
+            const opponentWins = firstRank === null || rank < firstRank;
+            const winner = opponentWins ? opponentTeam : buzzedTeam;
+            const reason = opponentWins
+              ? (firstRank !== null
+                  ? `${prev.teams[opponentTeam].name} đoán đáp án #${rank} cao hơn #${firstRank}! Cướp quyền thành công!`
+                  : `${prev.teams[opponentTeam].name} đoán trúng đáp án #${rank}! Giành quyền chơi!`)
+              : `${prev.teams[buzzedTeam].name} giữ đáp án #${firstRank} cao hơn #${rank}! Giành quyền chơi!`;
+
+            soundManager.playFanfare();
+            try {
+              confetti({ particleCount: 120, spread: 70, origin: { y: 0.6 } });
+            } catch {}
+
+            return {
+              ...prev,
+              revealedAnswers: newRevealed,
+              roundBank: newBank,
+              controllingTeam: winner,
+              faceOff: {
+                ...prev.faceOff,
+                status: 'completed',
+                secondAnswer: { answerId: ans.id, rank, text: ans.text, points: pts },
+                winnerTeam: winner,
+                winnerReason: reason,
+              },
+            };
+          }
+
+          return prev;
+        });
+        break;
+      case 'RESET_FACE_OFF':
+        setState((prev) => ({
+          ...prev,
+          faceOff: createInitialFaceOff('buzzer_waiting'),
+          buzzerWinner: null,
+          buzzerLocked: false,
+        }));
+        break;
+      case 'SKIP_FACE_OFF':
+        setState((prev) => ({
+          ...prev,
+          faceOff: {
+            ...prev.faceOff,
+            status: 'completed',
+          },
+          controllingTeam: action.controllingTeam !== undefined ? action.controllingTeam : prev.controllingTeam,
+        }));
+        break;
+      case 'PLAY_ROUND_START':
+        soundManager.playRoundStart();
         break;
       case 'UPDATE_TEAM_NAME':
         setState((prev) => ({
@@ -318,6 +575,7 @@ export function useGameState() {
             revealedAnswers: [],
             strikes: 0,
             roundBank: 0,
+            faceOff: createInitialFaceOff('buzzer_waiting'),
             fastMoney: action.fastMoneyQuestions
               ? createInitialFastMoney(action.fastMoneyQuestions)
               : prev.fastMoney,
@@ -325,6 +583,7 @@ export function useGameState() {
         });
         break;
       case 'RESET_GAME':
+        soundManager.playRoundStart();
         setState((prev) => {
           const firstQ = prev.questions[0];
           return {
@@ -342,9 +601,22 @@ export function useGameState() {
             controllingTeam: null,
             buzzerWinner: null,
             buzzerLocked: false,
+            faceOff: createInitialFaceOff('buzzer_waiting'),
             fastMoney: createInitialFastMoney(prev.fastMoney.questions),
           };
         });
+        break;
+      case 'REQUEST_SYNC':
+        if (stateRef.current) {
+          try {
+            if (channelRef.current) {
+              channelRef.current.postMessage({ type: 'SYNC_STATE', state: stateRef.current });
+            }
+            if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+              wsRef.current.send(JSON.stringify({ type: 'SYNC_STATE', state: stateRef.current }));
+            }
+          } catch {}
+        }
         break;
     }
   }, []);
@@ -385,9 +657,9 @@ export function useGameState() {
 
         ws.onopen = () => {
           console.log('[GameSync] Connected to LAN Game Server');
-          if (stateRef.current) {
-            ws.send(JSON.stringify({ type: 'SYNC_STATE', state: stateRef.current }));
-          }
+          try {
+            ws.send(JSON.stringify({ type: 'REQUEST_SYNC' }));
+          } catch {}
         };
 
         ws.onmessage = (event) => {
@@ -538,6 +810,7 @@ export function useGameState() {
   }, [broadcastAction]);
 
   const setRound = useCallback((roundIndex: number) => {
+    soundManager.playRoundStart();
     setState((prev) => {
       const newQ = prev.questions[roundIndex];
       return {
@@ -549,6 +822,9 @@ export function useGameState() {
         strikeOverlay: { visible: false, count: 0 },
         roundBank: 0,
         controllingTeam: null,
+        faceOff: createInitialFaceOff('buzzer_waiting'),
+        buzzerWinner: null,
+        buzzerLocked: false,
       };
     });
     broadcastAction({ type: 'SET_ROUND', roundIndex });
@@ -603,6 +879,58 @@ export function useGameState() {
     broadcastAction({ type: 'RESET_BUZZER' });
   }, [broadcastAction]);
 
+  // Face-Off Actions
+  const triggerFaceOffBuzzer = useCallback((team: 'teamA' | 'teamB') => {
+    soundManager.playBuzzer();
+    setState((prev) => ({
+      ...prev,
+      buzzerWinner: team,
+      buzzerLocked: true,
+      faceOff: {
+        ...prev.faceOff,
+        status: 'first_answer',
+        buzzedTeam: team,
+        firstAnswer: null,
+        secondAnswer: null,
+        winnerTeam: null,
+        winnerReason: undefined,
+      },
+    }));
+    broadcastAction({ type: 'TRIGGER_FACE_OFF_BUZZER', team });
+  }, [broadcastAction]);
+
+  const processFaceOffAnswer = useCallback((answerId: string | null, isStrike?: boolean) => {
+    handleSyncAction({ type: 'PROCESS_FACE_OFF_ANSWER', answerId, isStrike });
+    broadcastAction({ type: 'PROCESS_FACE_OFF_ANSWER', answerId, isStrike });
+  }, [handleSyncAction, broadcastAction]);
+
+  const resetFaceOff = useCallback(() => {
+    setState((prev) => ({
+      ...prev,
+      faceOff: createInitialFaceOff('buzzer_waiting'),
+      buzzerWinner: null,
+      buzzerLocked: false,
+    }));
+    broadcastAction({ type: 'RESET_FACE_OFF' });
+  }, [broadcastAction]);
+
+  const skipFaceOff = useCallback((controllingTeam?: 'teamA' | 'teamB' | null) => {
+    setState((prev) => ({
+      ...prev,
+      faceOff: {
+        ...prev.faceOff,
+        status: 'completed',
+      },
+      controllingTeam: controllingTeam !== undefined ? controllingTeam : prev.controllingTeam,
+    }));
+    broadcastAction({ type: 'SKIP_FACE_OFF', controllingTeam });
+  }, [broadcastAction]);
+
+  const playRoundStart = useCallback(() => {
+    soundManager.playRoundStart();
+    broadcastAction({ type: 'PLAY_ROUND_START' });
+  }, [broadcastAction]);
+
   const updateFastMoney = useCallback((fastMoney: FastMoneyState) => {
     setState((prev) => ({
       ...prev,
@@ -632,6 +960,7 @@ export function useGameState() {
           revealedAnswers: [],
           strikes: 0,
           roundBank: 0,
+          faceOff: createInitialFaceOff('buzzer_waiting'),
           fastMoney: fastMoneyQuestions
             ? createInitialFastMoney(fastMoneyQuestions)
             : prev.fastMoney,
@@ -643,6 +972,7 @@ export function useGameState() {
   );
 
   const resetGame = useCallback(() => {
+    soundManager.playRoundStart();
     setState((prev) => {
       const firstQ = prev.questions[0];
       return {
@@ -660,6 +990,7 @@ export function useGameState() {
         controllingTeam: null,
         buzzerWinner: null,
         buzzerLocked: false,
+        faceOff: createInitialFaceOff('buzzer_waiting'),
         fastMoney: createInitialFastMoney(prev.fastMoney.questions),
       };
     });
@@ -688,6 +1019,11 @@ export function useGameState() {
     setControllingTeam,
     triggerBuzzer,
     resetBuzzer,
+    triggerFaceOffBuzzer,
+    processFaceOffAnswer,
+    resetFaceOff,
+    skipFaceOff,
+    playRoundStart,
     updateFastMoney,
     updateQuestions,
     resetGame,
